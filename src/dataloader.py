@@ -23,7 +23,8 @@ FOLDER_VAL_CD = os.path.join(DATA_FOLDER, 'HiUCD_mini/val/mask_merge/2017_2018/9
 
 
 class HiUCD_Dataset(Dataset):
-    def __init__(self, cropsize=256, type = 'train', small=False, size=10, everything=False, semantic=True, get_name=False):
+    #cropsize modidié à 224 pour que ce soit un multiple de 14 pour l'encoder DINOv2
+    def __init__(self, cropsize=224, type = 'train', small=False, size=10, everything=False, semantic=True, get_name=False):
         self.get_name =get_name
 
         if type == 'train':
