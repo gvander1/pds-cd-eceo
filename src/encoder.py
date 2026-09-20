@@ -34,48 +34,44 @@ class DinoV2Encoder(nn.Module):
         C = patch_tokens.shape[-1]
         grid = patch_tokens.permute(0, 2, 1).reshape(B, C, n_side, n_side)  # (B, C, 16, 16)
         return grid
+    
+
 
 #transformer encoder decoder
 class FeatureTransformer(nn.Module):
-    def __init__(self, embed_dim=384, n_heads=6, n_encoder_layers=4, n_decoder_layers=4, mlp_ratio=4, dropout=0.1):
+    def __init__(self, embed_dim=384, n_heads=6, n_encoder_layers=3, n_decoder_layers=3, #comme dans foundad paper (nb de layer)
+                 mlp_ratio=4, dropout=0.1, n_tokens=256):
         super().__init__()
         self.embed_dim = embed_dim
 
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=embed_dim, nhead=n_heads,
             dim_feedforward=embed_dim * mlp_ratio,
-            dropout=dropout, batch_first=True
+            dropout=dropout, batch_first=True, norm_first=True
         )
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
 
         decoder_layer = nn.TransformerEncoderLayer(
             d_model=embed_dim, nhead=n_heads,
             dim_feedforward=embed_dim * mlp_ratio,
-            dropout=dropout, batch_first=True
+            dropout=dropout, batch_first=True, norm_first=True
         )
         self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
 
-        self.pos_embed = None  # initialisé au premier forward selon n_side
-
-    def _build_pos_embed(self, n_tokens, device): #position des tokens dans l'image (sera ajouté aux tokens pour que le transformer sache où se trouve chaque token dans l'image et modifiée avec le gradient descent)
-        pos = torch.zeros(1, n_tokens, self.embed_dim, device=device)
-        nn.init.trunc_normal_(pos, std=0.02)
-        return nn.Parameter(pos)
+        # créé ici pour être enregistré avant la création de l'optimizer
+        self.pos_embed = nn.Parameter(torch.zeros(1, n_tokens, embed_dim))
+        nn.init.trunc_normal_(self.pos_embed, std=0.02)
 
     def forward(self, x_grid):
         B, C, H, W = x_grid.shape
         tokens = x_grid.flatten(2).permute(0, 2, 1)  # (B, H*W, C)
-
-        if self.pos_embed is None or self.pos_embed.shape[1] != tokens.shape[1]: 
-            self.pos_embed = self._build_pos_embed(tokens.shape[1], tokens.device) 
-
+        assert tokens.shape[1] == self.pos_embed.shape[1], \
+            f"n_tokens={tokens.shape[1]} != pos_embed {self.pos_embed.shape[1]}"
         tokens = tokens + self.pos_embed
 
         encoded = self.transformer_encoder(tokens)
         decoded = self.transformer_decoder(encoded)
-
-        x_hat = decoded.permute(0, 2, 1).reshape(B, C, H, W)
-        return x_hat
+        return decoded.permute(0, 2, 1).reshape(B, C, H, W)
     
 class ChangeDetectionModel(nn.Module):
     def __init__(self, encoder, transformer):
