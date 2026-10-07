@@ -12,3 +12,5 @@ data/*
 *.pth
 *.ckpt
 .DS_Store
+wandb/
+checkpoints/
