@@ -86,16 +86,12 @@ class ChangeDetectionModel(nn.Module):
         x_hat = self.transformer(x)
         return x_hat, y
 
-class Trainer:
-    def __init__(self, model, lr=1e-4):
-        self.model = model
-        self.optimizer = torch.optim.Adam(model.transformer.parameters(), lr=lr)
-        self.loss_fn = torch.nn.MSELoss()
-
-    def train_step(self, im1, im2):
-        self.optimizer.zero_grad()
-        x_hat, y = self.model(im1, im2)
-        loss = self.loss_fn(x_hat, y)
-        loss.backward()
-        self.optimizer.step()
-        return loss.item()
+def build_models(cfg, device):
+    """Frozen encoder + FeatureTransformer, both built from the config."""
+    enc = DinoV2Encoder(model_name=cfg["encoder"], freeze=True, resize_to=cfg["resize_to"]).to(device)
+    n_side = cfg["resize_to"] // enc.patch_size
+    tr = FeatureTransformer(embed_dim=enc.out_channels, n_heads=cfg["n_heads"],
+                            n_encoder_layers=cfg["n_encoder_layers"],
+                            n_decoder_layers=cfg["n_decoder_layers"],
+                            dropout=cfg["dropout"], n_tokens=n_side * n_side).to(device)
+    return enc, tr

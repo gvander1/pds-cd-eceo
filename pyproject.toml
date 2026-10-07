@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pds_cd"
+version = "0.1.0"
+requires-python = ">=3.9"
+# Dependencies are NOT listed on purpose: torch / torchvision come from your conda env
+# (with the right CUDA build) and pip must not try to replace them.
+# Needed: torch torchvision numpy scikit-learn matplotlib pyyaml wandb pillow
+
+[tool.setuptools.packages.find]
+where = ["src"]

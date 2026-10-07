@@ -1,0 +1,3 @@
+dataset: hiucd
+root: /data/gaetane        # folder that CONTAINS HiUCD_mini/
+crop: 256                  # random crop on every split (val reproducible through eval_seed)

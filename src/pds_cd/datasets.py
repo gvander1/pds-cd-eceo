@@ -222,12 +222,17 @@ class LEVIRCD_Dataset(Dataset):
  
 # ---------------------------------------------------------------- entry point for scripts
  
-def build_dataset(cfg, split):
-    """Used by train.py / evaluate.py: every parameter comes from the config (and is logged to W&B)."""
+def build_dataset(cfg, split, augment=None):
+    """Used by train.py / evaluate.py: every parameter comes from the config (and is logged to W&B).
+
+    augment=None -> cfg["augment"] on train, never on val / test.
+    Pass augment=False to get the train set without augmentation (used to pick the threshold).
+    """
+    if augment is None:
+        augment = cfg["augment"] if split == "train" else False
     if cfg["dataset"] == "hiucd":
-        return HiUCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg.get("root", HiUCD_ROOT),
-                             augment=(cfg.get("augment") if split == "train" else False), everything=True)
+        return HiUCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"],
+                             augment=augment, everything=True)
     if cfg["dataset"] == "levir":
-        return LEVIRCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg.get("root", LEVIR_ROOT),
-                               augment=(cfg.get("augment") if split == "train" else False))
+        return LEVIRCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"], augment=augment)
     raise ValueError(f"Unknown dataset {cfg['dataset']!r}")

@@ -1,0 +1,16 @@
+# Launch:  wandb sweep configs/sweep.yaml   then   wandb agent <entity>/pds-cd/<sweep_id>
+program: scripts/train.py
+method: grid
+metric:
+  name: val/auroc_model
+  goal: maximize
+parameters:
+  data:
+    values: [hiucd, levir]
+  seed:
+    values: [0, 1, 2]
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}

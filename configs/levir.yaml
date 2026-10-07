@@ -1,0 +1,3 @@
+dataset: levir
+root: /data/gaetane/LEVIR-CD   # folder that contains train/ val/ test/
+crop: 256                       # random crop on train, fixed 4x4 tiles on val/test

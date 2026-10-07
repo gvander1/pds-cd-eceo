@@ -1,0 +1,29 @@
+# Settings shared by every experiment. Any key can be overridden on the command line:
+#   python scripts/train.py --data levir --epochs 30 --seed 1
+project: pds-cd            # W&B project name
+
+# --- encoder (frozen) ---
+encoder: dinov2_vits14     # dinov2_vits14 | dinov2_vitb14 | dinov2_vitl14
+resize_to: 224             # crop is resized to this before DINOv2 (multiple of 14 -> 16x16 patches)
+
+# --- FeatureTransformer ---
+n_heads: 6
+n_encoder_layers: 3
+n_decoder_layers: 3
+dropout: 0.1
+
+# --- training ---
+epochs: 20
+batch_size: 16
+lr: 3.0e-4                 # max lr of OneCycle
+weight_decay: 1.0e-2
+pct_start: 0.1
+augment: true              # flips + 90° rotations on train only (same for both datasets)
+num_workers: 4
+seed: 0                    # model init, shuffling, train crops / augmentation
+
+# --- evaluation ---
+eval_seed: 42              # fixes the random val crops of Hi-UCD (LEVIR val is tiled, unaffected)
+epoch_eval_pixels: 1000000 # pixels subsampled for the per-epoch AUROC/AP (final eval uses all)
+n_vis: 8                   # number of examples logged as images by evaluate.py
+log_model: true            # also upload the checkpoint to W&B as an artifact
