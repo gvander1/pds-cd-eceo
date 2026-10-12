@@ -56,6 +56,7 @@ def main():
     ch_va = A.per_channel_auroc(X_va, lab_va)
     best = int(np.argmax(ch_tr))  # chosen on TRAIN, reported on VAL
     s_tr["best_channel"], s_va["best_channel"] = X_tr[:, best], X_va[:, best]
+    pca_fig, _ = V.pca_scatter_figure(X_tr, X_va, lab_va, title=f"{tag} | val | PCA of |y - x|")   # NEW
     del X_tr, X_va
 
     results = {name: A.evaluate_score(s_tr[name], lab_tr, s_va[name], lab_va) for name in s_va}
@@ -69,6 +70,7 @@ def main():
         "histograms": V.score_histograms(s_va, lab_va, f"{tag} | val"),
         "per_channel_auroc": V.per_channel_figure(ch_va, f"{tag} | val | AUROC of each channel of |y - x|"),
         "scatter_L2_probe": V.scatter_figure(s_va["L2"], s_va["probe"], lab_va, ("L2", "probe"), title=f"{tag} | val"),
+        "pca_scatter": pca_fig, 
     }
 
     transitions = None

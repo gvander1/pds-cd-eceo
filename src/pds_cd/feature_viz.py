@@ -194,3 +194,33 @@ def transition_figure(rows, title=""):
     a2.set(xlabel="fraction above threshold", title="unchanged classes (false-positive rate)", xlim=(0, 1))
     fig.suptitle(title)
     return fig
+
+def pca_scatter_figure(X_tr, X_va, lab_va, extra=None, extra_name="LDA score",
+                       n_per_class=3000, max_fit=50_000, seed=0, title=""):
+    """Val patches in the plane of the first two PCA components of X (PCA fitted on TRAIN, no labels),
+    coloured by label (balanced subsample). If `extra` is given (one score per val patch, e.g. LDA),
+    a second panel shows PC1 vs that score, to contrast unsupervised and supervised directions."""
+    rng = np.random.default_rng(seed)
+    fit_idx = rng.choice(len(X_tr), min(max_fit, len(X_tr)), replace=False)
+    pca = PCA(2, random_state=seed).fit(X_tr[fit_idx].astype(np.float32))
+    evr = pca.explained_variance_ratio_
+
+    idx = _balanced(lab_va, n_per_class, seed)
+    P = pca.transform(X_va[idx].astype(np.float32))
+    lab = lab_va[idx]
+    panels = [(P[:, 0], P[:, 1], f"PC1 ({evr[0]:.0%} of variance)", f"PC2 ({evr[1]:.0%} of variance)")]
+    if extra is not None:
+        panels.append((P[:, 0], extra[idx], f"PC1 ({evr[0]:.0%} of variance)", extra_name))
+
+    fig, axs = plt.subplots(1, len(panels), figsize=(6 * len(panels), 5.5), constrained_layout=True, squeeze=False)
+    for ax, (a, b, xl, yl) in zip(axs[0], panels):
+        for c, name in ((0, "no change"), (1, "change")):
+            m = lab == c
+            ax.scatter(a[m], b[m], s=4, alpha=0.4, label=name)
+        ax.set(xlabel=xl, ylabel=yl)
+        ax.legend(markerscale=4)
+    axs[0, 0].set_title("PCA (no labels)")
+    if extra is not None:
+        axs[0, 1].set_title(f"PC1 vs {extra_name} (uses labels)")
+    fig.suptitle(title)
+    return fig, pca
