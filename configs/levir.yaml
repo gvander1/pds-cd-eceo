@@ -1,3 +1,4 @@
 dataset: levir
 root: /data/gaetane/LEVIR-CD   # folder that contains train/ val/ test/
-crop: 256                       # random crop on train, fixed 4x4 tiles on val/test
+crop: 256                       # one random crop per image on train and val (like Hi-UCD), fixed 4x4 tiles on test
+val_tiles: false                # true -> val = fixed 4x4 grid of tiles covering the whole image (old behaviour)

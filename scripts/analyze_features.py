@@ -47,20 +47,20 @@ def main():
     X_tr, X_va = A.probe_input(tr["x"], tr["y"], args.probe_input), A.probe_input(va["x"], va["y"], args.probe_input)
     probe = A.fit_probe(X_tr, lab_tr, neg_ratio=args.neg_ratio)
     s_tr["probe"], s_va["probe"] = A.model_scores(probe, X_tr), A.model_scores(probe, X_va)
-    lda = A.fit_lda(X_tr, lab_tr, neg_ratio=args.neg_ratio)
-    s_tr["LDA"], s_va["LDA"] = A.model_scores(lda, X_tr), A.model_scores(lda, X_va)
+    # lda = A.fit_lda(X_tr, lab_tr, neg_ratio=args.neg_ratio)
+    # s_tr["LDA"], s_va["LDA"] = A.model_scores(lda, X_tr), A.model_scores(lda, X_va)
 
     if args.probe_input != "absdiff":
         X_tr, X_va = A.probe_input(tr["x"], tr["y"]), A.probe_input(va["x"], va["y"])
-    ch_tr = A.per_channel_auroc(X_tr, lab_tr)
-    ch_va = A.per_channel_auroc(X_va, lab_va)
-    best = int(np.argmax(ch_tr))  # chosen on TRAIN, reported on VAL
-    s_tr["best_channel"], s_va["best_channel"] = X_tr[:, best], X_va[:, best]
+    # ch_tr = A.per_channel_auroc(X_tr, lab_tr)
+    # ch_va = A.per_channel_auroc(X_va, lab_va)
+    # best = int(np.argmax(ch_tr))  # chosen on TRAIN, reported on VAL
+    # s_tr["best_channel"], s_va["best_channel"] = X_tr[:, best], X_va[:, best]
     pca_fig, _ = V.pca_scatter_figure(X_tr, X_va, lab_va, title=f"{tag} | val | PCA of |y - x|")   # NEW
     del X_tr, X_va
 
     results = {name: A.evaluate_score(s_tr[name], lab_tr, s_va[name], lab_va) for name in s_va}
-    print(f"\n{tag} — patch level, val (threshold from train); best channel = #{best}")
+    print(f"\n{tag} — patch level, val (threshold from train)")
     print(f"{'score':14s}" + "".join(f"{m:>14s}" for m in METRICS))
     for name, r in results.items():
         print(f"{name:14s}" + "".join(f"{r[m]:14.4f}" for m in METRICS))
@@ -68,10 +68,37 @@ def main():
     figs = {
         "roc_pr": V.roc_pr_figure(s_va, lab_va, f"{tag} | val"),
         "histograms": V.score_histograms(s_va, lab_va, f"{tag} | val"),
-        "per_channel_auroc": V.per_channel_figure(ch_va, f"{tag} | val | AUROC of each channel of |y - x|"),
-        "scatter_L2_probe": V.scatter_figure(s_va["L2"], s_va["probe"], lab_va, ("L2", "probe"), title=f"{tag} | val"),
-        "pca_scatter": pca_fig, 
+        # "per_channel_auroc": V.per_channel_figure(ch_va, f"{tag} | val | AUROC of each channel of |y - x|"),
+        # "scatter_L2_probe": V.scatter_figure(s_va["L2"], s_va["probe"], lab_va, ("L2", "probe"), title=f"{tag} | val"),
+        "pca_scatter": pca_fig,
+        "pca_pairs_T1_T2": V.pair_pca_figure(tr["x"], tr["y"], va["x"], va["y"], lab_va,
+                                             title=f"{tag} | val | T1 (blue) vs T2 (orange) features, PCA 2D"),
+        "pca_pairs_T1_T2_all": V.pair_pca_figure(tr["x"], tr["y"], va["x"], va["y"], lab_va, by_label=False,
+                                                 title=f"{tag} | val | T1 (blue) vs T2 (orange), all patches (changed + unchanged), PCA 2D"),
     }
+    if va["meta"]["has_landcover"]:
+        figs["pca_classes_T1"] = V.class_pca_figure(tr["x"], va["x"], va["lc1"],
+                                                    title=f"{tag} | val | T1 patch features, PCA 2D, coloured by land-cover class")
+    
+    class_rows = class_pca_rows = None
+    if va["meta"]["has_landcover"]:
+        f_tr, c_tr = A.class_patches(tr)
+        f_va, c_va = A.class_patches(va)
+        mu = f_tr.astype(np.float32).mean(0)
+        classes, M_raw, counts = A.class_cosine_matrix(f_va, c_va)
+        _, M_cen, _ = A.class_cosine_matrix(f_va, c_va, mean=mu)
+        # _, conf, bal_acc = A.nearest_prototype(f_tr, c_tr, f_va, c_va, mean=mu)
+        figs["class_similarity"] = V.class_similarity_figure(classes, M_raw, M_cen, counts,
+                                                             f"{tag} | land-cover classes in feature space (T1 + T2 patches)")
+        cls_pca, _ = A.class_cosine_pca(f_tr, f_va, c_va)
+        figs["class_similarity_pca"] = V.class_similarity_pca_figure(
+            cls_pca, title=f"{tag} | land-cover classes: cosine in the first k PCA components (PCA fitted on train, no labels)")
+        class_pca_rows = [[r["k"], r["within"], r["max_between"], r["margin"]] for r in cls_pca]
+        for r in cls_pca:
+            print(f"class similarity k={r['k']:4d}  within {r['within']:.3f}  max_between {r['max_between']:.3f}  margin {r['margin']:+.3f}")
+        class_rows = [[int(c), int(n), float(M_raw[i, i]), float(M_cen[i, i]),
+                       float(np.delete(M_cen[i], i).max()), int(classes[np.delete(np.arange(len(classes)), i)[np.argmax(np.delete(M_cen[i], i))]])] for i, (c, n) in enumerate(zip(classes, counts))]
+        del f_tr, f_va
 
     transitions = None
     if va["meta"]["has_landcover"]:
@@ -80,11 +107,11 @@ def main():
 
     sweep = None
     if args.pca_sweep:
-        sweep, evr = A.pca_sweep(tr["x"], tr["y"], va["x"], va["y"], lab_va)
+        sweep, evr = A.pca_sweep(tr["x"], tr["y"], va["x"], va["y"], lab_va, lab_tr=lab_tr)
         figs["pca_sweep"] = V.pca_sweep_figure(sweep, evr, f"{tag} | distance in the first k PCA components")
         for r in sweep:
-            print(f"k={r['k']:4d}  AUROC L2 {r['auroc_L2']:.4f}  AP L2 {r['ap_L2']:.4f}  "
-                  f"AUROC cos {r['auroc_cosine']:.4f}  AP cos {r['ap_cosine']:.4f}")
+            print(f"k={r['k']:4d}  L2: AUROC {r['auroc_L2']:.4f} AP {r['ap_L2']:.4f} F1 {r['f1_L2']:.4f}  |  "
+                  f"cos: AUROC {r['auroc_cosine']:.4f} AP {r['ap_cosine']:.4f} F1 {r['f1_cosine']:.4f}")
 
     out_dir = ROOT / "results" / ds / enc
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -96,7 +123,7 @@ def main():
         import wandb
         run = wandb.init(project=cfg["project"], job_type="analysis", dir=ROOT, group=f"{ds}-{enc}",
                          name=f"analysis-{ds}-{enc}-{args.probe_input}", tags=[ds, enc, "analysis"],
-                         config={**cfg, **vars(args), "best_channel": best,
+                         config={**cfg, **vars(args),
                                  "n_patches_train": len(lab_tr), "n_patches_val": len(lab_va)})
         run.summary.update({f"val/{m}_{name}": r[m] for name, r in results.items() for m in METRICS})
         log = {k: wandb.Image(f) for k, f in figs.items()}
@@ -105,6 +132,14 @@ def main():
         if transitions:
             cols = ["lc1", "lc2", "n", "frac_changed", "mean_score", "above_thr", "auroc_vs_unchanged"]
             log["transitions_L2_table"] = wandb.Table(columns=cols, data=[[r.get(c) for c in cols] for r in transitions])
+        if class_pca_rows:
+            log["class_similarity_pca_table"] = wandb.Table(columns=["k", "within", "max_between", "margin"],
+                                                            data=class_pca_rows)
+        if class_rows:
+            # run.summary["val/class_nearest_proto_bal_acc"] = bal_acc
+                        log["class_similarity_table"] = wandb.Table(
+                columns=["class", "n_val_patches", "within_cos_raw", "within_cos_centred",
+                         "max_between_cos_centred", "closest_class"], data=class_rows)
         if sweep:
             cols = list(sweep[0].keys())
             log["pca_sweep_table"] = wandb.Table(columns=cols, data=[[r[c] for c in cols] for r in sweep])

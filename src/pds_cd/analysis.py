@@ -115,24 +115,35 @@ def evaluate_score(s_tr, lab_tr, s_va, lab_va):
     return res
 
 
-def pca_sweep(x_tr, y_tr, x_va, y_va, lab_va, ks=(2, 5, 10, 20, 50, 100, 200, 384), max_fit=50_000, seed=0):
-    """Step 4: L2 / cosine distance computed in the first k PCA components (PCA fitted on TRAIN, no labels)."""
+def pca_sweep(x_tr, y_tr, x_va, y_va, lab_va, lab_tr=None,
+              ks=(2, 5, 10, 20, 50, 100, 200, 384), max_fit=50_000, seed=0):
+    """Step 4: L2 / cosine distance computed in the first k PCA components (PCA fitted on TRAIN, no labels).
+    AUROC / AP on VAL. If lab_tr is given, also F1 on VAL with the best-F1 threshold chosen on TRAIN
+    (same protocol as the results table)."""
     idx = _subsample(len(x_tr), max_fit, seed)
     fit_x = np.concatenate([x_tr[idx], y_tr[idx]]).astype(np.float32)
-    k_max = min(max(ks), fit_x.shape[1])
+    k_max = min(fit_x.shape)  # number of feature channels (384 ViT-S, 768 ViT-B, 1024 ResNet-50 layer3...)
+    ks = sorted({min(k, k_max) for k in ks} | {k_max})  # always include "all components"
     pca = PCA(n_components=k_max, random_state=seed).fit(fit_x)
-    px = np.concatenate([pca.transform(x_va[sl].astype(np.float32)) for sl in _chunks(len(x_va))]).astype(np.float32)
-    py = np.concatenate([pca.transform(y_va[sl].astype(np.float32)) for sl in _chunks(len(y_va))]).astype(np.float32)
+
+    def project(a):
+        return np.concatenate([pca.transform(a[sl].astype(np.float32)) for sl in _chunks(len(a))]).astype(np.float32)
+
+    px, py = project(x_va), project(y_va)
+    if lab_tr is not None:
+        tx, ty = project(x_tr), project(y_tr)
     rows = []
     for k in sorted({min(k, k_max) for k in ks}):
-        l2 = l2_distance(px[:, :k], py[:, :k])
-        cos = cosine_distance(px[:, :k], py[:, :k])
         r = {"k": k}
-        r.update({f"{m}_L2": v for m, v in separability(l2, lab_va).items()})
-        r.update({f"{m}_cosine": v for m, v in separability(cos, lab_va).items()})
+        for name, dist in (("L2", l2_distance), ("cosine", cosine_distance)):
+            s_va = dist(px[:, :k], py[:, :k])
+            if lab_tr is None:
+                r.update({f"{m}_{name}": v for m, v in separability(s_va, lab_va).items()})
+            else:
+                res = evaluate_score(dist(tx[:, :k], ty[:, :k]), lab_tr, s_va, lab_va)
+                r.update({f"{m}_{name}": res[m] for m in ("auroc", "ap", "f1", "precision", "recall")})
         rows.append(r)
     return rows, pca.explained_variance_ratio_
-
 
 def per_transition(score, labels, lc1, lc2, thr, min_count=50):
     """Hi-UCD: behaviour of a score for each land-cover transition (lc1 -> lc2) at patch level.
@@ -160,3 +171,89 @@ def per_transition(score, labels, lc1, lc2, thr, min_count=50):
             row["auroc_vs_unchanged"] = float(((lo + hi) / 2).mean() / len(neg_sorted))
         rows.append(row)
     return rows
+
+# ------------------------------------------------------------------ Hi-UCD: are land-cover classes separated in feature space?
+
+def class_patches(d, unlabeled=0):
+    """Pool T1 and T2 patches with their own land-cover class: T1 features get lc1, T2 features get lc2.
+    Returns (features (M, C) float16, classes (M,)) without the unlabelled class."""
+    feats = np.concatenate([d["x"], d["y"]])
+    cls = np.concatenate([d["lc1"], d["lc2"]])
+    keep = cls != unlabeled
+    return feats[keep], cls[keep]
+
+
+def _normalize(X, mean=None):
+    X = X.astype(np.float32)
+    if mean is not None:
+        X = X - mean
+    return X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-8)
+
+
+def class_cosine_matrix(feats, cls, mean=None, max_per_class=1000, seed=0):
+    """Mean cosine similarity between individual patches of class i and class j (random subsample per class).
+    Diagonal = within-class similarity (self-pairs excluded), off-diagonal = between classes.
+    `mean`: vector subtracted from every feature before the cosine (None = raw features)."""
+    rng = np.random.default_rng(seed)
+    classes = np.unique(cls)
+    groups = []
+    for c in classes:
+        idx = np.where(cls == c)[0]
+        idx = rng.choice(idx, min(max_per_class, len(idx)), replace=False)
+        groups.append(_normalize(feats[idx], mean))
+    K = len(classes)
+    M = np.zeros((K, K), np.float32)
+    for i in range(K):
+        for j in range(i, K):
+            S = groups[i] @ groups[j].T
+            if i == j:
+                n = len(S)
+                M[i, i] = (S.sum() - np.trace(S)) / max(n * (n - 1), 1)
+            else:
+                M[i, j] = M[j, i] = S.mean()
+    counts = np.array([(cls == c).sum() for c in classes])
+    return classes, M, counts
+
+
+def nearest_prototype(feats_tr, cls_tr, feats_va, cls_va, mean=None):
+    """Prototype of each class = mean of its (normalised) TRAIN features. Every VAL patch is assigned to the
+    prototype with the highest cosine. Returns classes, row-normalised confusion matrix, balanced accuracy."""
+    classes = np.unique(cls_tr)
+    protos = np.stack([_normalize(feats_tr[cls_tr == c], mean).mean(0) for c in classes])
+    protos /= np.linalg.norm(protos, axis=1, keepdims=True)
+    pred = np.empty(len(feats_va), np.int64)
+    for sl in _chunks(len(feats_va)):
+        pred[sl] = (_normalize(feats_va[sl], mean) @ protos.T).argmax(1)
+    pred = classes[pred]
+    conf = np.zeros((len(classes), len(classes)))
+    for a, c in enumerate(classes):
+        m = cls_va == c
+        if m.any():
+            conf[a] = [(pred[m] == p).mean() for p in classes]
+    present = [a for a, c in enumerate(classes) if (cls_va == c).any()]
+    return classes, conf, float(np.mean([conf[a, a] for a in present]))
+
+def class_cosine_pca(feats_tr, feats_va, cls_va, ks=(2, 5, 10, 20, 50, 100, 384), max_fit=50_000,
+                     max_per_class=1000, seed=0):
+    """Class x class cosine matrix (as class_cosine_matrix) computed in the first k PCA components.
+    PCA is fitted on TRAIN class patches without labels; PCA centres the data, so k = 384 equals the
+    'centred' matrix. Returns a list of dicts {k, classes, M, counts, within, max_between, margin}:
+        within       mean of the diagonal (same-class similarity)
+        max_between  mean over classes of the highest similarity to ANOTHER class
+        margin       mean over classes of (own-class similarity - highest other-class similarity);
+                     > 0 means classes are, on average, closer to themselves than to their nearest other class."""
+    idx = _subsample(len(feats_tr), max_fit, seed)
+    k_max = min(feats_tr.shape[1], len(idx))
+    ks = sorted({min(k, k_max) for k in ks} | {k_max})  # always include "all components"
+    pca = PCA(n_components=k_max, random_state=seed).fit(feats_tr[idx].astype(np.float32))
+    P = np.concatenate([pca.transform(feats_va[sl].astype(np.float32)) for sl in _chunks(len(feats_va))]).astype(np.float32)
+    out = []
+    for k in sorted({min(k, k_max) for k in ks}):
+        classes, M, counts = class_cosine_matrix(P[:, :k], cls_va, max_per_class=max_per_class, seed=seed)
+        off = M.copy()
+        np.fill_diagonal(off, -np.inf)
+        best_other = off.max(1)
+        out.append({"k": k, "classes": classes, "M": M, "counts": counts,
+                    "within": float(np.diag(M).mean()), "max_between": float(best_other.mean()),
+                    "margin": float((np.diag(M) - best_other).mean())})
+    return out, pca.explained_variance_ratio_

@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader
 
 from .config import ROOT
 from .datasets import build_dataset
-from .model import DinoV2Encoder
+from .model import build_encoder as _build_encoder
 from .utils import fixed_rng
 
 FEATURES_DIR = ROOT / "features"
@@ -38,10 +38,8 @@ def cache_path(dataset, encoder, split, root=FEATURES_DIR):
 
 
 def build_encoder(cfg, device):
-    """Frozen encoder from the config. Step 3 (other encoders) only needs a new branch here."""
-    if cfg["encoder"].startswith("dinov2"):
-        return DinoV2Encoder(model_name=cfg["encoder"], freeze=True, resize_to=cfg["resize_to"]).to(device).eval()
-    raise ValueError(f"Unknown encoder {cfg['encoder']!r}")
+    """Frozen encoder from the config (see build_encoder in model.py: one place for every encoder)."""
+    return _build_encoder(cfg, device)
 
 
 def _patch_majority(classes, grid_hw):

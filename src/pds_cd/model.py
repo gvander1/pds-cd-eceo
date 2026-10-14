@@ -11,6 +11,7 @@ class DinoV2Encoder(nn.Module):
         self.patch_size = 14
         self.resize_to = resize_to
         self.out_channels = self.model.embed_dim  # 384 pour vits14, 768 vitb14, 1024 vitl14
+        self.grid_size = resize_to // self.patch_size  # 16 for resize_to=224        
 
         if freeze: #pour ne pas entrainer l'encoder poids pas mis à jour, gradients pas caluclés etc
             for p in self.model.parameters():
@@ -86,12 +87,51 @@ class ChangeDetectionModel(nn.Module):
         x_hat = self.transformer(x)
         return x_hat, y
 
+class ResNet50Encoder(nn.Module):
+    """Example of a second frozen encoder: torchvision ResNet-50 (ImageNet, supervised), cut after layer3.
+    layer3 has stride 16, so a 256 crop gives a 16x16 grid of 1024-channel features: same grid as DINOv2 with
+    resize_to=224, so patch labels and all the analysis stay directly comparable."""
+
+    def __init__(self, freeze=True, input_size=256, weights="IMAGENET1K_V2"):
+        super().__init__()
+        import torchvision
+        m = torchvision.models.resnet50(weights=weights)
+        self.body = nn.Sequential(m.conv1, m.bn1, m.relu, m.maxpool, m.layer1, m.layer2, m.layer3)
+        self.input_size = input_size
+        self.out_channels = 1024
+        self.grid_size = input_size // 16
+        if freeze:
+            for p in self.parameters():
+                p.requires_grad = False
+        self.eval()
+
+    def forward(self, x):
+        x = F.interpolate(x, size=(self.input_size, self.input_size), mode="bilinear", align_corners=False)
+        mean = torch.tensor([0.485, 0.456, 0.406], device=x.device).view(1, 3, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225], device=x.device).view(1, 3, 1, 1)
+        return self.body((x - mean) / std)  # (B, 1024, 16, 16)
+
+
+def build_encoder(cfg, device=None):
+    """Single place where an encoder name from the config becomes a model.
+    Every encoder must: take (B, 3, H, W) images in [0, 1], return a (B, C, h, w) feature grid that covers the
+    whole crop, and expose .out_channels (C) and .grid_size (h = w). Add a new encoder = one class + one branch here."""
+    name = cfg["encoder"]
+    if name.startswith("dinov2"):
+        enc = DinoV2Encoder(model_name=name, freeze=True, resize_to=cfg["resize_to"])
+    elif name == "resnet50_l3":
+        enc = ResNet50Encoder(freeze=True, input_size=cfg["crop"])
+    else:
+        raise ValueError(f"Unknown encoder {name!r} (add it to build_encoder in src/pds_cd/model.py)")
+    enc = enc.eval()
+    return enc.to(device) if device is not None else enc
+
+
 def build_models(cfg, device):
     """Frozen encoder + FeatureTransformer, both built from the config."""
-    enc = DinoV2Encoder(model_name=cfg["encoder"], freeze=True, resize_to=cfg["resize_to"]).to(device)
-    n_side = cfg["resize_to"] // enc.patch_size
+    enc = build_encoder(cfg, device)
     tr = FeatureTransformer(embed_dim=enc.out_channels, n_heads=cfg["n_heads"],
                             n_encoder_layers=cfg["n_encoder_layers"],
                             n_decoder_layers=cfg["n_decoder_layers"],
-                            dropout=cfg["dropout"], n_tokens=n_side * n_side).to(device)
+                            dropout=cfg["dropout"], n_tokens=enc.grid_size ** 2).to(device)
     return enc, tr
