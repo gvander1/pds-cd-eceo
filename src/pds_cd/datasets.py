@@ -145,14 +145,16 @@ class LEVIRCD_Dataset(Dataset):
       changemap      : long (cropsize, cropsize) in {0, 1}
  
     Cropping:
-      - train      : one random crop per image per epoch
-      - val / test : deterministic grid of non-overlapping tiles (1024 / 256 -> 16 per image)
+      - train : one random crop per image per epoch
+      - val   : one random crop per image, like Hi-UCD (reproducible when wrapped in fixed_rng);
+                val_tiles=True -> deterministic grid of non-overlapping tiles (1024 / 256 -> 16 per image)
+      - test  : deterministic grid of tiles
     """
  
     EXCLUDE = {"train_76.png"}  # label unreadable on the workstation disk
  
     def __init__(self, cropsize=256, type="train", root=LEVIR_ROOT, augment=None,
-                 small=False, size=10, get_name=False):
+                 small=False, size=10, get_name=False, val_tiles=False):
         if type not in SPLITS:
             raise ValueError(f"type must be one of {SPLITS}, got {type!r}")
  
@@ -177,8 +179,9 @@ class LEVIRCD_Dataset(Dataset):
             raise ValueError(f"cropsize={cropsize} larger than image size {self.img_w}x{self.img_h}")
  
         self.tiles_y = self.img_h // cropsize  # pixels beyond the last full tile are dropped
-        self.tiles_x = self.img_w // cropsize
-        self.tiles_per_image = 1 if type == "train" else self.tiles_y * self.tiles_x
+        # one random crop per image (train, and val unless val_tiles) or a fixed grid of tiles (test)
+        self.random_crop = type == "train" or (type == "val" and not val_tiles)
+        self.tiles_per_image = 1 if self.random_crop else self.tiles_y * self.tiles_x
  
     def __len__(self):
         return len(self.names) * self.tiles_per_image
@@ -191,10 +194,10 @@ class LEVIRCD_Dataset(Dataset):
  
     def transform(self, im1, im2, lab, tile=None):
         cs = self.cropsize
-        if tile is None:  # random crop (train)
+        if tile is None:  # random crop (train, val)
             i = int(torch.randint(0, self.img_h - cs + 1, (1,)))
             j = int(torch.randint(0, self.img_w - cs + 1, (1,)))
-        else:             # deterministic tile (val / test)
+        else:             # deterministic tile (test, or val with val_tiles= True)
             r, c = divmod(tile, self.tiles_x)
             i, j = r * cs, c * cs
  
@@ -207,7 +210,7 @@ class LEVIRCD_Dataset(Dataset):
         return im1, im2, lab
  
     def __getitem__(self, idx):
-        if self.type == "train":
+        if self.random_crop:
             img_idx, tile = idx, None
         else:
             img_idx, tile = divmod(idx, self.tiles_per_image)
@@ -234,5 +237,6 @@ def build_dataset(cfg, split, augment=None):
         return HiUCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"],
                              augment=augment, everything=True)
     if cfg["dataset"] == "levir":
-        return LEVIRCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"], augment=augment)
-    raise ValueError(f"Unknown dataset {cfg['dataset']!r}")
+        return LEVIRCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"], augment=augment,
+                               val_tiles=cfg.get("val_tiles", False))    
+        raise ValueError(f"Unknown dataset {cfg['dataset']!r}")
