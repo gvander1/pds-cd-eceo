@@ -111,6 +111,34 @@ class ResNet50Encoder(nn.Module):
         std = torch.tensor([0.229, 0.224, 0.225], device=x.device).view(1, 3, 1, 1)
         return self.body((x - mean) / std)  # (B, 1024, 16, 16)
 
+class DinoV3SEncoder(nn.Module):
+    """Frozen DINOv3 ViT-S/16 (web images, LVD-1689M), via Hugging Face transformers >= 4.56.
+    Patch 16, so a 256 crop gives 16x16 tokens with no resize (same grid as DINOv2 at 224 and ResNet-50 layer3).
+    last_hidden_state = output of the final LayerNorm; tokens ordered [CLS, registers, patches]."""
+
+    def __init__(self, input_size=256):
+        super().__init__()
+        from transformers import AutoModel
+        self.model = AutoModel.from_pretrained("facebook/dinov3-vits16-pretrain-lvd1689m")
+        self.patch_size = self.model.config.patch_size              # 16
+        self.input_size = input_size
+        self.grid_size = input_size // self.patch_size              # 16
+        self.out_channels = self.model.config.hidden_size           # 384
+        self.n_prefix = 1 + self.model.config.num_register_tokens   # CLS + 4 registers
+        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        for p in self.model.parameters():
+            p.requires_grad = False
+        self.eval()
+
+    def forward(self, x):
+        B = x.shape[0]
+        x = F.interpolate(x, size=(self.input_size, self.input_size), mode="bilinear", align_corners=False)
+        out = self.model(pixel_values=(x - self.mean) / self.std)
+        tokens = out.last_hidden_state[:, self.n_prefix:]           # keep patch tokens only
+        n = self.grid_size
+        assert tokens.shape[1] == n * n, f"{tokens.shape[1]} patch tokens, expected {n * n}"
+        return tokens.permute(0, 2, 1).reshape(B, self.out_channels, n, n)
 
 def build_encoder(cfg, device=None):
     """Single place where an encoder name from the config becomes a model.
@@ -119,6 +147,8 @@ def build_encoder(cfg, device=None):
     name = cfg["encoder"]
     if name.startswith("dinov2"):
         enc = DinoV2Encoder(model_name=name, freeze=True, resize_to=cfg["resize_to"])
+    elif name == "dinov3_vits16":
+        enc = DinoV3SEncoder(input_size=cfg["crop"])
     elif name == "resnet50_l3":
         enc = ResNet50Encoder(freeze=True, input_size=cfg["crop"])
     else:
