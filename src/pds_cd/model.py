@@ -139,7 +139,106 @@ class DinoV3SEncoder(nn.Module):
         n = self.grid_size
         assert tokens.shape[1] == n * n, f"{tokens.shape[1]} patch tokens, expected {n * n}"
         return tokens.permute(0, 2, 1).reshape(B, self.out_channels, n, n)
+    
 
+class DinoV3LEncoder(nn.Module):
+    """Frozen DINOv3 ViT-L/16, web (LVD-1689M) or satellite (SAT-493M, Maxar RGB 0.6 m), via transformers.
+    Same architecture and training method for both: only the pretraining data differ.
+    Patch 16, so a 256 crop gives 16x16 tokens with no resize. 1024 channels per patch."""
+    VARIANTS = {
+        "dinov3_vitl16":     ("facebook/dinov3-vitl16-pretrain-lvd1689m",
+                              (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),   # ImageNet stats
+        "dinov3_vitl16_sat": ("facebook/dinov3-vitl16-pretrain-sat493m",
+                              (0.430, 0.411, 0.296), (0.213, 0.156, 0.143)),   # satellite stats (DINOv3 README)
+    }
+
+    def __init__(self, name, input_size=256):
+        super().__init__()
+        from transformers import AutoModel
+        repo, mean, std = self.VARIANTS[name]
+        self.model = AutoModel.from_pretrained(repo)
+        self.patch_size = self.model.config.patch_size              # 16
+        self.input_size = input_size
+        self.grid_size = input_size // self.patch_size              # 16
+        self.out_channels = self.model.config.hidden_size           # 1024
+        self.n_prefix = 1 + self.model.config.num_register_tokens   # CLS + registers
+        self.register_buffer("mean", torch.tensor(mean).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor(std).view(1, 3, 1, 1))
+        for p in self.model.parameters():
+            p.requires_grad = False
+        self.eval()
+
+    def forward(self, x):
+        B = x.shape[0]
+        x = F.interpolate(x, size=(self.input_size, self.input_size), mode="bilinear", align_corners=False)
+        out = self.model(pixel_values=(x - self.mean) / self.std)
+        tokens = out.last_hidden_state[:, self.n_prefix:]           # keep patch tokens only
+        n = self.grid_size
+        assert tokens.shape[1] == n * n, f"{tokens.shape[1]} patch tokens, expected {n * n}"
+        return tokens.permute(0, 2, 1).reshape(B, self.out_channels, n, n)
+
+class SamViTBEncoder(nn.Module):
+    """Frozen SAM ViT-B image encoder (facebook/sam-vit-base, trained on SA-1B masks), via transformers.
+    SAM's position embeddings are fixed to 1024x1024 inputs, so the crop is upsampled to 1024.
+    Output = SAM 'image embeddings' (after the neck): (B, 256, 64, 64), average-pooled 4x4 -> (B, 256, 16, 16),
+    so each cell covers the same ground area as a patch of the other encoders."""
+
+    def __init__(self, chunk=4):
+        super().__init__()
+        from transformers import SamModel
+        sam = SamModel.from_pretrained("facebook/sam-vit-base")
+        self.encoder = sam.vision_encoder        # keep only the image encoder
+        del sam
+        self.sam_size = self.encoder.config.image_size                                # 1024
+        self.sam_grid = self.sam_size // self.encoder.config.patch_size               # 64
+        self.grid_size = 16
+        self.out_channels = self.encoder.config.output_channels                       # 256
+        self.chunk = chunk                       # images per forward pass, limits GPU memory at 1024x1024
+        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        for p in self.encoder.parameters():
+            p.requires_grad = False
+        self.eval()
+
+    def forward(self, x):
+        x = F.interpolate(x, size=(self.sam_size, self.sam_size), mode="bilinear", align_corners=False)
+        x = (x - self.mean) / self.std
+        feats = [self.encoder(pixel_values=c).last_hidden_state for c in x.split(self.chunk)]
+        f = torch.cat(feats)                                                          # (B, 256, 64, 64)
+        assert f.shape[-1] == self.sam_grid, f"SAM grid {tuple(f.shape[-2:])}, expected {self.sam_grid}"
+        return F.adaptive_avg_pool2d(f, self.grid_size)                          # (B, 256, 16, 16)
+
+class SamViTBEncoder(nn.Module):
+    """Frozen SAM ViT-B image encoder (facebook/sam-vit-base, trained on SA-1B masks), via transformers.
+    SAM's position embeddings are fixed to 1024x1024 inputs, so the crop is upsampled to 1024.
+    Output = SAM 'image embeddings' (after the neck): (B, 256, 64, 64), average-pooled 4x4 -> (B, 256, 16, 16),
+    so each cell covers the same ground area as a patch of the other encoders."""
+
+    def __init__(self, chunk=4):
+        super().__init__()
+        from transformers import SamModel
+        sam = SamModel.from_pretrained("facebook/sam-vit-base")
+        self.encoder = sam.vision_encoder        # keep only the image encoder
+        del sam
+        self.sam_size = self.encoder.config.image_size                                # 1024
+        self.sam_grid = self.sam_size // self.encoder.config.patch_size               # 64
+        self.grid_size = 16
+        self.out_channels = self.encoder.config.output_channels                       # 256
+        self.chunk = chunk                       # images per forward pass, limits GPU memory at 1024x1024
+        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        for p in self.encoder.parameters():
+            p.requires_grad = False
+        self.eval()
+
+    def forward(self, x):
+        x = F.interpolate(x, size=(self.sam_size, self.sam_size), mode="bilinear", align_corners=False)
+        x = (x - self.mean) / self.std
+        feats = [self.encoder(pixel_values=c).last_hidden_state for c in x.split(self.chunk)]
+        f = torch.cat(feats)                                                          # (B, 256, 64, 64)
+        assert f.shape[-1] == self.sam_grid, f"SAM grid {tuple(f.shape[-2:])}, expected {self.sam_grid}"
+        return F.adaptive_avg_pool2d(f, self.grid_size)                               # (B, 256, 16, 16)
+    
 def build_encoder(cfg, device=None):
     """Single place where an encoder name from the config becomes a model.
     Every encoder must: take (B, 3, H, W) images in [0, 1], return a (B, C, h, w) feature grid that covers the
@@ -149,6 +248,10 @@ def build_encoder(cfg, device=None):
         enc = DinoV2Encoder(model_name=name, freeze=True, resize_to=cfg["resize_to"])
     elif name == "dinov3_vits16":
         enc = DinoV3SEncoder(input_size=cfg["crop"])
+    elif name in ("dinov3_vitl16", "dinov3_vitl16_sat"):
+        enc = DinoV3LEncoder(name, input_size=cfg["crop"])
+    elif name == "sam_vitb":
+        enc = SamViTBEncoder()
     elif name == "resnet50_l3":
         enc = ResNet50Encoder(freeze=True, input_size=cfg["crop"])
     else:

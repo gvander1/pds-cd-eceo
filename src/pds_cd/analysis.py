@@ -3,17 +3,11 @@
 Every score is "higher = more likely change" and is defined per patch:
     L2            mean over channels of (y - x)^2      (same as the raw error of evaluate.py)
     cosine        1 - cos(x, y)                         (ignores the feature norm)
-    probe         logistic regression on |y - x|        (uses labels: diagnostic, not a method)
-    LDA           best linear direction for 2 classes   (uses labels: diagnostic)
     best channel  |y - x| of the single best channel, chosen on TRAIN
 """
 import numpy as np
 from scipy.stats import rankdata
 from sklearn.decomposition import PCA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
 
 from .metrics import best_f1_threshold, scores_at_threshold, separability
 
@@ -51,47 +45,9 @@ def cosine_distance(x, y, eps=1e-8):
 
 # ------------------------------------------------------------------ supervised diagnostics
 
-def probe_input(x, y, kind="absdiff"):
-    """Patch representation given to the probe / LDA."""
-    x32, y32 = x.astype(np.float32), y.astype(np.float32)
-    if kind == "absdiff":
-        return np.abs(y32 - x32)
-    if kind == "diff":
-        return y32 - x32
-    if kind == "concat":
-        return np.concatenate([x32, y32], axis=1)
-    raise ValueError(f"Unknown probe input {kind!r}")
-
-
-def balanced_index(labels, neg_ratio=1.0, seed=0):
-    """All positive patches + neg_ratio times as many random negatives."""
-    pos = np.where(labels == 1)[0]
-    neg = np.where(labels == 0)[0]
-    if len(pos) == 0:
-        raise ValueError("No changed patch in the training labels: check the patch label threshold (label_thr)")
-    n_neg = min(len(neg), int(round(neg_ratio * len(pos))))
-    neg = np.random.default_rng(seed).choice(neg, n_neg, replace=False)
-    return np.sort(np.concatenate([pos, neg]))
-
-
-def fit_probe(X_tr, lab_tr, neg_ratio=1.0, C=1.0, seed=0):
-    """Linear probe = standardisation + logistic regression, trained on a class-balanced subset of TRAIN."""
-    idx = balanced_index(lab_tr, neg_ratio, seed)
-    model = make_pipeline(StandardScaler(), LogisticRegression(C=C, max_iter=2000))
-    return model.fit(X_tr[idx], lab_tr[idx])
-
-
-def fit_lda(X_tr, lab_tr, neg_ratio=1.0, seed=0):
-    idx = balanced_index(lab_tr, neg_ratio, seed)
-    return make_pipeline(StandardScaler(), LinearDiscriminantAnalysis()).fit(X_tr[idx], lab_tr[idx])
-
-
-def model_scores(model, X):
-    """decision_function in chunks (same ranking as the predicted probability)."""
-    out = np.empty(len(X), np.float32)
-    for sl in _chunks(len(X)):
-        out[sl] = model.decision_function(X[sl])
-    return out
+def abs_difference(x, y):
+    """|y - x| per patch and channel (float32). Used for the PCA figure."""
+    return np.abs(y.astype(np.float32) - x.astype(np.float32))
 
 
 def per_channel_auroc(X, labels, max_n=100_000, seed=0):

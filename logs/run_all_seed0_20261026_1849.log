@@ -1,0 +1,939 @@
+========== hiucd | dinov2_vits14 | seed 0 | lun. 26 oct. 2026 18:49:51 CET ==========
+[skip] /home/gaetane/pdseceo/features/hiucd/dinov2_vits14/train.npz exists (use --overwrite to recompute)
+[skip] /home/gaetane/pdseceo/features/hiucd/dinov2_vits14/val.npz exists (use --overwrite to recompute)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 5nxw9hnx
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_185006-5nxw9hnx
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run analysis-hiucd-dinov2_vits14
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/5nxw9hnx
+wandb: updating run metadata; uploading artifact run-5nxw9hnx-results; uploading artifact run-5nxw9hnx-transitions_L2_table; uploading artifact run-5nxw9hnx-class_similarity_pca_table; uploading artifact run-5nxw9hnx-class_similarity_table
+wandb: uploading artifact run-5nxw9hnx-results; uploading artifact run-5nxw9hnx-transitions_L2_table; uploading artifact run-5nxw9hnx-class_similarity_pca_table; uploading artifact run-5nxw9hnx-class_similarity_table; uploading media/table/class_similarity_pca_table_0_3cabee442110df1d06ed.table.json (+ 15 more)
+wandb: uploading artifact run-5nxw9hnx-results; uploading artifact run-5nxw9hnx-transitions_L2_table; uploading artifact run-5nxw9hnx-class_similarity_pca_table; uploading artifact run-5nxw9hnx-class_similarity_table; uploading media/images/histograms_0_961e542c0f2d21250d37.png (+ 12 more)
+wandb: uploading artifact run-5nxw9hnx-transitions_L2_table; uploading artifact run-5nxw9hnx-class_similarity_pca_table; uploading artifact run-5nxw9hnx-class_similarity_table
+wandb: uploading artifact run-5nxw9hnx-class_similarity_pca_table; uploading artifact run-5nxw9hnx-class_similarity_table
+wandb: uploading config.yaml
+wandb: 
+wandb: Run summary:
+wandb:                val/ap_L2 0.18815
+wandb:            val/ap_cosine 0.1871
+wandb:             val/auroc_L2 0.8201
+wandb:         val/auroc_cosine 0.82693
+wandb:                val/f1_L2 0.2505
+wandb:            val/f1_cosine 0.26964
+wandb:         val/precision_L2 0.16937
+wandb:     val/precision_cosine 0.20297
+wandb:     val/pred_pos_frac_L2 0.14698
+wandb: val/pred_pos_frac_cosine 0.10242
+wandb:                       +4 ...
+wandb: 
+wandb: 🚀 View run analysis-hiucd-dinov2_vits14 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/5nxw9hnx
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 4 W&B file(s), 13 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_185006-5nxw9hnx/logs
+train: 76800 patches (7.40% changed) | val: 15104 patches (5.18% changed)
+
+hiucd | dinov2_vits14 — patch level, val (threshold from train)
+score                  auroc            ap            f1     precision        recall pred_pos_frac     threshold
+L2                    0.8201        0.1881        0.2505        0.1694        0.4808        0.1470        7.0855
+cosine                0.8269        0.1871        0.2696        0.2030        0.4015        0.1024        0.6742
+class similarity k=   2  within 0.504  max_between 0.465  margin +0.039
+class similarity k=   5  within 0.449  max_between 0.349  margin +0.100
+class similarity k=  10  within 0.402  max_between 0.260  margin +0.143
+class similarity k=  20  within 0.356  max_between 0.185  margin +0.171
+class similarity k=  50  within 0.310  max_between 0.141  margin +0.169
+class similarity k= 100  within 0.290  max_between 0.116  margin +0.174
+class similarity k= 384  within 0.267  max_between 0.095  margin +0.172
+
+figures saved to /home/gaetane/pdseceo/results/hiucd/dinov2_vits14
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 07aa2f73
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_185024-07aa2f73
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run hiucd-dinov2_vits14-seed0-07aa2f73
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/07aa2f73
+Using cache found in /home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+train: 300 samples, 18 batches | val: 59 samples
+epoch   0 | train 6.3343 | val 5.4133 | AUROC model 0.859 raw 0.871
+epoch   1 | train 5.1884 | val 4.5523 | AUROC model 0.866 raw 0.871
+epoch   2 | train 4.5093 | val 4.1505 | AUROC model 0.863 raw 0.871
+epoch   3 | train 4.2312 | val 3.8990 | AUROC model 0.862 raw 0.871
+epoch   4 | train 3.9534 | val 3.7215 | AUROC model 0.854 raw 0.871
+epoch   5 | train 3.7735 | val 3.6180 | AUROC model 0.860 raw 0.871
+epoch   6 | train 3.7069 | val 3.5127 | AUROC model 0.855 raw 0.871
+epoch   7 | train 3.6025 | val 3.4455 | AUROC model 0.863 raw 0.871
+epoch   8 | train 3.5607 | val 3.3804 | AUROC model 0.862 raw 0.871
+epoch   9 | train 3.4945 | val 3.3249 | AUROC model 0.859 raw 0.871
+epoch  10 | train 3.4372 | val 3.2988 | AUROC model 0.854 raw 0.871
+epoch  11 | train 3.3810 | val 3.2634 | AUROC model 0.845 raw 0.871
+epoch  12 | train 3.4081 | val 3.2463 | AUROC model 0.852 raw 0.871
+epoch  13 | train 3.3786 | val 3.2252 | AUROC model 0.855 raw 0.871
+epoch  14 | train 3.3568 | val 3.2114 | AUROC model 0.851 raw 0.871
+epoch  15 | train 3.3830 | val 3.1963 | AUROC model 0.850 raw 0.871
+epoch  16 | train 3.3282 | val 3.1902 | AUROC model 0.848 raw 0.871
+epoch  17 | train 3.3455 | val 3.1849 | AUROC model 0.848 raw 0.871
+epoch  18 | train 3.3036 | val 3.1811 | AUROC model 0.849 raw 0.871
+wandb: updating run metadata; uploading artifact transformer-hiucd-dinov2_vits14
+wandb: uploading artifact transformer-hiucd-dinov2_vits14
+wandb: uploading output.log; uploading config.yaml
+wandb: uploading history steps 19-19, summary, console lines 31-33
+wandb: 
+wandb: Run history:
+wandb:           epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
+wandb:              lr ▅████▇▇▆▆▅▄▄▃▃▂▂▁▁▁▁
+wandb:      train/loss █▅▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    val/ap_model ▂▇▅▄▄█▃▇▆▆▄▁▃▅▄▃▃▃▃▃
+wandb:      val/ap_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: val/auroc_model ▆█▇▇▄▆▄▇▇▆▄▁▃▅▃▃▂▂▂▂
+wandb:   val/auroc_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   val/feat_loss █▅▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:      checkpoint /home/gaetane/pdsece...
+wandb:           epoch 19
+wandb:              lr 0.0
+wandb:      train/loss 3.30655
+wandb:    val/ap_model 0.24191
+wandb:      val/ap_raw 0.27614
+wandb: val/auroc_model 0.84936
+wandb:   val/auroc_raw 0.87137
+wandb:   val/feat_loss 3.18064
+wandb: 
+wandb: 🚀 View run hiucd-dinov2_vits14-seed0-07aa2f73 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/07aa2f73
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_185024-07aa2f73/logs
+epoch  19 | train 3.3066 | val 3.1806 | AUROC model 0.849 raw 0.871
+checkpoint saved: /home/gaetane/pdseceo/checkpoints/hiucd-dinov2_vits14-seed0-07aa2f73.pt
+next: python scripts/evaluate.py --ckpt /home/gaetane/pdseceo/checkpoints/hiucd-dinov2_vits14-seed0-07aa2f73.pt
+Using cache found in /home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 1bmavlgq
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_185326-1bmavlgq
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run eval-val-hiucd-dinov2_vits14-seed0-07aa2f73
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/1bmavlgq
+wandb: updating run metadata
+wandb: uploading media/images/mask/examples/overlay_model_0_f58f047e4f54d1afc586.mask.png; uploading media/images/hist/train_0_22ff932106b8c6321506.png; uploading media/images/examples/overlay_model_0_3c3427508a8c69df56fa.png; uploading media/images/examples/overlay_model_0_3b93f26267630963185e.png; uploading media/images/examples/model_0_156729a02636db8a8631.png (+ 19 more)
+wandb: uploading media/images/hist/train_0_22ff932106b8c6321506.png; uploading media/images/examples/overlay_model_0_3c3427508a8c69df56fa.png; uploading media/images/examples/overlay_model_0_3b93f26267630963185e.png; uploading media/images/examples/model_0_156729a02636db8a8631.png; uploading media/images/mask/examples/overlay_model_0_f6515ff48a8e603ff2d8.mask.png (+ 18 more)
+wandb: uploading media/images/examples/model_0_156729a02636db8a8631.png; uploading media/images/examples/raw_0_fff775bf3c6f60778b80.png
+wandb: uploading media/images/examples/model_0_156729a02636db8a8631.png
+wandb: 
+wandb: Run summary:
+wandb:        train/ap_model 0.294
+wandb:          train/ap_raw 0.30475
+wandb:     train/auroc_model 0.82904
+wandb:       train/auroc_raw 0.84108
+wandb:        train/f1_model 0.36994
+wandb:          train/f1_raw 0.38429
+wandb: train/threshold_model 4.40778
+wandb:   train/threshold_raw 7.1232
+wandb:          val/ap_model 0.24085
+wandb:            val/ap_raw 0.2748
+wandb:                   +13 ...
+wandb: 
+wandb: 🚀 View run eval-val-hiucd-dinov2_vits14-seed0-07aa2f73 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/1bmavlgq
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 21 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_185326-1bmavlgq/logs
+train/ap_model                   0.2940
+train/ap_raw                     0.3048
+train/auroc_model                0.8290
+train/auroc_raw                  0.8411
+train/f1_model                   0.3699
+train/f1_raw                     0.3843
+train/threshold_model            4.4078
+train/threshold_raw              7.1232
+val/ap_model                     0.2408
+val/ap_raw                       0.2748
+val/auroc_model                  0.8484
+val/auroc_raw                    0.8704
+val/f1_model                     0.3115
+val/f1_raw                       0.3345
+val/feat_loss                    3.1806
+val/precision_model              0.2335
+val/precision_raw                0.2559
+val/pred_pos_frac_model          0.1041
+val/pred_pos_frac_raw            0.0980
+val/recall_model                 0.4675
+val/recall_raw                   0.4826
+val/true_pos_frac_model          0.0520
+val/true_pos_frac_raw            0.0520
+========== levir | dinov2_vits14 | seed 0 | lun. 26 oct. 2026 18:54:20 CET ==========
+[skip] /home/gaetane/pdseceo/features/levir/dinov2_vits14/train.npz exists (use --overwrite to recompute)
+[skip] /home/gaetane/pdseceo/features/levir/dinov2_vits14/val.npz exists (use --overwrite to recompute)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run foa2d1h5
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_185433-foa2d1h5
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run analysis-levir-dinov2_vits14
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/foa2d1h5
+wandb: updating run metadata; uploading artifact run-foa2d1h5-results
+wandb: uploading artifact run-foa2d1h5-results
+wandb: uploading config.yaml; uploading wandb-metadata.json; uploading requirements.txt; uploading media/images/pca_scatter_0_39730732c749814405b4.png; uploading wandb-summary.json (+ 4 more)
+wandb: uploading media/images/pca_pairs_T1_T2_0_f73a67a5c3a28569a1cf.png; uploading media/images/pca_pairs_T1_T2_all_0_30912df1a9140881e2db.png
+wandb: uploading history steps 0-0, summary
+wandb: 
+wandb: Run summary:
+wandb:                val/ap_L2 0.20401
+wandb:            val/ap_cosine 0.23955
+wandb:             val/auroc_L2 0.89397
+wandb:         val/auroc_cosine 0.90611
+wandb:                val/f1_L2 0.31709
+wandb:            val/f1_cosine 0.33445
+wandb:         val/precision_L2 0.22716
+wandb:     val/precision_cosine 0.2484
+wandb:     val/pred_pos_frac_L2 0.09619
+wandb: val/pred_pos_frac_cosine 0.08575
+wandb:                       +4 ...
+wandb: 
+wandb: 🚀 View run analysis-levir-dinov2_vits14 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/foa2d1h5
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 4 W&B file(s), 6 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_185433-foa2d1h5/logs
+train: 113664 patches (4.95% changed) | val: 16384 patches (4.16% changed)
+
+levir | dinov2_vits14 — patch level, val (threshold from train)
+score                  auroc            ap            f1     precision        recall pred_pos_frac     threshold
+L2                    0.8940        0.2040        0.3171        0.2272        0.5249        0.0962        8.1550
+cosine                0.9061        0.2395        0.3345        0.2484        0.5117        0.0858        0.7140
+
+figures saved to /home/gaetane/pdseceo/results/levir/dinov2_vits14
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 2b04e643
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_185454-2b04e643
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run levir-dinov2_vits14-seed0-2b04e643
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/2b04e643
+Using cache found in /home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+train: 444 samples, 27 batches | val: 64 samples
+epoch   0 | train 6.3982 | val 5.3304 | AUROC model 0.857 raw 0.902
+epoch   1 | train 4.9175 | val 4.4003 | AUROC model 0.851 raw 0.902
+epoch   2 | train 4.2210 | val 4.0042 | AUROC model 0.865 raw 0.902
+epoch   3 | train 3.9196 | val 3.7546 | AUROC model 0.839 raw 0.902
+epoch   4 | train 3.7557 | val 3.6808 | AUROC model 0.815 raw 0.902
+epoch   5 | train 3.5694 | val 3.5735 | AUROC model 0.809 raw 0.902
+epoch   6 | train 3.4838 | val 3.4859 | AUROC model 0.851 raw 0.902
+epoch   7 | train 3.4015 | val 3.3917 | AUROC model 0.848 raw 0.902
+epoch   8 | train 3.3635 | val 3.3819 | AUROC model 0.816 raw 0.902
+epoch   9 | train 3.3236 | val 3.3404 | AUROC model 0.829 raw 0.902
+epoch  10 | train 3.2807 | val 3.3073 | AUROC model 0.888 raw 0.902
+epoch  11 | train 3.2213 | val 3.2995 | AUROC model 0.874 raw 0.902
+epoch  12 | train 3.1844 | val 3.2626 | AUROC model 0.851 raw 0.902
+epoch  13 | train 3.1859 | val 3.2225 | AUROC model 0.848 raw 0.902
+epoch  14 | train 3.1646 | val 3.1893 | AUROC model 0.870 raw 0.902
+epoch  15 | train 3.1590 | val 3.2035 | AUROC model 0.860 raw 0.902
+epoch  16 | train 3.0889 | val 3.1922 | AUROC model 0.859 raw 0.902
+epoch  17 | train 3.1234 | val 3.1932 | AUROC model 0.850 raw 0.902
+epoch  18 | train 3.1465 | val 3.1893 | AUROC model 0.853 raw 0.902
+wandb: updating run metadata; uploading artifact transformer-levir-dinov2_vits14
+wandb: uploading artifact transformer-levir-dinov2_vits14
+wandb: uploading config.yaml; uploading output.log
+wandb: uploading history steps 19-19, summary, console lines 31-33
+wandb: 
+wandb: Run history:
+wandb:           epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
+wandb:              lr ▅████▇▇▆▆▅▄▄▃▃▂▂▁▁▁▁
+wandb:      train/loss █▅▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb:    val/ap_model ▃▂▅▂▁▁▆▄▂▄▇█▅▄▇▆▅▅▅▅
+wandb:      val/ap_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: val/auroc_model ▅▅▆▄▁▁▅▄▂▃█▇▅▄▆▆▅▅▅▅
+wandb:   val/auroc_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   val/feat_loss █▅▄▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:      checkpoint /home/gaetane/pdsece...
+wandb:           epoch 19
+wandb:              lr 0.0
+wandb:      train/loss 3.11843
+wandb:    val/ap_model 0.20012
+wandb:      val/ap_raw 0.21761
+wandb: val/auroc_model 0.85288
+wandb:   val/auroc_raw 0.9016
+wandb:   val/feat_loss 3.18835
+wandb: 
+wandb: 🚀 View run levir-dinov2_vits14-seed0-2b04e643 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/2b04e643
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_185454-2b04e643/logs
+epoch  19 | train 3.1184 | val 3.1883 | AUROC model 0.853 raw 0.902
+checkpoint saved: /home/gaetane/pdseceo/checkpoints/levir-dinov2_vits14-seed0-2b04e643.pt
+next: python scripts/evaluate.py --ckpt /home/gaetane/pdseceo/checkpoints/levir-dinov2_vits14-seed0-2b04e643.pt
+Using cache found in /home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/home/gaetane/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 368gyel1
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_185817-368gyel1
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run eval-val-levir-dinov2_vits14-seed0-2b04e643
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/368gyel1
+wandb: updating run metadata
+wandb: uploading media/images/mask/examples/overlay_model_0_a6675787afd8f987e36d.mask.png; uploading media/images/examples/overlay_model_0_3b93f26267630963185e.png; uploading media/images/mask/examples/overlay_model_0_0299d2cd308c2992708e.mask.png; uploading media/images/examples/overlay_model_0_00034e2c215e19e5bfa2.png; uploading media/images/mask/examples/overlay_model_0_ca3bbf3557de0fe1285a.mask.png (+ 21 more)
+wandb: uploading media/images/mask/examples/overlay_model_0_ca3bbf3557de0fe1285a.mask.png; uploading media/images/examples/overlay_model_0_7287b50cf83727bb1914.png; uploading media/images/mask/examples/overlay_model_0_a0a78bc04e17ad09557c.mask.png; uploading media/images/examples/model_0_f0effc4c1b8789c244ee.png; uploading media/images/mask/examples/overlay_model_0_891bd71a5885560d3466.mask.png (+ 12 more)
+wandb: uploading media/images/examples/model_0_f0effc4c1b8789c244ee.png; uploading media/images/examples/raw_0_9a63fe4f7ee6061a0217.png
+wandb: 
+wandb: Run summary:
+wandb:        train/ap_model 0.15882
+wandb:          train/ap_raw 0.20298
+wandb:     train/auroc_model 0.81215
+wandb:       train/auroc_raw 0.86836
+wandb:        train/f1_model 0.24186
+wandb:          train/f1_raw 0.30378
+wandb: train/threshold_model 4.18082
+wandb:   train/threshold_raw 7.79096
+wandb:          val/ap_model 0.20004
+wandb:            val/ap_raw 0.21835
+wandb:                   +13 ...
+wandb: 
+wandb: 🚀 View run eval-val-levir-dinov2_vits14-seed0-2b04e643 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/368gyel1
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 23 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_185817-368gyel1/logs
+train/ap_model                   0.1588
+train/ap_raw                     0.2030
+train/auroc_model                0.8122
+train/auroc_raw                  0.8684
+train/f1_model                   0.2419
+train/f1_raw                     0.3038
+train/threshold_model            4.1808
+train/threshold_raw              7.7910
+val/ap_model                     0.2000
+val/ap_raw                       0.2183
+val/auroc_model                  0.8525
+val/auroc_raw                    0.9014
+val/f1_model                     0.2714
+val/f1_raw                       0.3323
+val/feat_loss                    3.1883
+val/precision_model              0.1708
+val/precision_raw                0.2347
+val/pred_pos_frac_model          0.1684
+val/pred_pos_frac_raw            0.1055
+val/recall_model                 0.6601
+val/recall_raw                   0.5687
+val/true_pos_frac_model          0.0436
+val/true_pos_frac_raw            0.0436
+========== hiucd | resnet50_l3 | seed 0 | lun. 26 oct. 2026 18:59:24 CET ==========
+[skip] /home/gaetane/pdseceo/features/hiucd/resnet50_l3/train.npz exists (use --overwrite to recompute)
+[skip] /home/gaetane/pdseceo/features/hiucd/resnet50_l3/val.npz exists (use --overwrite to recompute)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 89smv4jh
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_185949-89smv4jh
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run analysis-hiucd-resnet50_l3
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/89smv4jh
+wandb: uploading artifact run-89smv4jh-results; uploading artifact run-89smv4jh-transitions_L2_table; uploading artifact run-89smv4jh-class_similarity_pca_table; uploading wandb-metadata.json; uploading media/images/pca_pairs_T1_T2_all_0_9e32b790aaa5f08ef581.png (+ 13 more)
+wandb: uploading artifact run-89smv4jh-results; uploading artifact run-89smv4jh-transitions_L2_table; uploading artifact run-89smv4jh-class_similarity_pca_table; uploading wandb-metadata.json; uploading media/images/pca_pairs_T1_T2_all_0_9e32b790aaa5f08ef581.png (+ 11 more)
+wandb: uploading artifact run-89smv4jh-results; uploading artifact run-89smv4jh-transitions_L2_table; uploading artifact run-89smv4jh-class_similarity_pca_table; uploading media/images/pca_pairs_T1_T2_0_56190aa002d7e5a04811.png; uploading artifact run-89smv4jh-class_similarity_table
+wandb: uploading artifact run-89smv4jh-results; uploading artifact run-89smv4jh-transitions_L2_table; uploading artifact run-89smv4jh-class_similarity_pca_table; uploading artifact run-89smv4jh-class_similarity_table
+wandb: uploading media/table/class_similarity_table_0_e9841fa43aa15f6fe0ed.table.json; uploading wandb-summary.json; uploading config.yaml
+wandb: uploading history steps 0-0, summary
+wandb: 
+wandb: Run summary:
+wandb:                val/ap_L2 0.08571
+wandb:            val/ap_cosine 0.12427
+wandb:             val/auroc_L2 0.66887
+wandb:         val/auroc_cosine 0.77942
+wandb:                val/f1_L2 0.14877
+wandb:            val/f1_cosine 0.20945
+wandb:         val/precision_L2 0.08599
+wandb:     val/precision_cosine 0.13256
+wandb:     val/pred_pos_frac_L2 0.33183
+wandb: val/pred_pos_frac_cosine 0.19478
+wandb:                       +4 ...
+wandb: 
+wandb: 🚀 View run analysis-hiucd-resnet50_l3 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/89smv4jh
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 4 W&B file(s), 13 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_185949-89smv4jh/logs
+train: 76800 patches (7.40% changed) | val: 15104 patches (5.18% changed)
+
+hiucd | resnet50_l3 — patch level, val (threshold from train)
+score                  auroc            ap            f1     precision        recall pred_pos_frac     threshold
+L2                    0.6689        0.0857        0.1488        0.0860        0.5512        0.3318        0.9592
+cosine                0.7794        0.1243        0.2095        0.1326        0.4987        0.1948        0.5273
+class similarity k=   2  within 0.454  max_between 0.409  margin +0.045
+class similarity k=   5  within 0.371  max_between 0.225  margin +0.146
+class similarity k=  10  within 0.322  max_between 0.140  margin +0.181
+class similarity k=  20  within 0.271  max_between 0.097  margin +0.173
+class similarity k=  50  within 0.220  max_between 0.061  margin +0.159
+class similarity k= 100  within 0.193  max_between 0.046  margin +0.147
+class similarity k= 384  within 0.156  max_between 0.030  margin +0.126
+class similarity k=1024  within 0.136  max_between 0.025  margin +0.111
+
+figures saved to /home/gaetane/pdseceo/results/hiucd/resnet50_l3
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run d5e15974
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_190005-d5e15974
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run hiucd-resnet50_l3-seed0-d5e15974
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/d5e15974
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+train: 300 samples, 18 batches | val: 59 samples
+epoch   0 | train 2.0489 | val 1.3997 | AUROC model 0.649 raw 0.680
+epoch   1 | train 1.2395 | val 1.0036 | AUROC model 0.668 raw 0.680
+epoch   2 | train 0.9906 | val 0.9311 | AUROC model 0.667 raw 0.680
+epoch   3 | train 0.9369 | val 0.8845 | AUROC model 0.665 raw 0.680
+epoch   4 | train 0.8727 | val 0.8370 | AUROC model 0.668 raw 0.680
+epoch   5 | train 0.8241 | val 0.7957 | AUROC model 0.665 raw 0.680
+epoch   6 | train 0.8025 | val 0.7610 | AUROC model 0.662 raw 0.680
+epoch   7 | train 0.7648 | val 0.7298 | AUROC model 0.662 raw 0.680
+epoch   8 | train 0.7375 | val 0.7060 | AUROC model 0.663 raw 0.680
+epoch   9 | train 0.7146 | val 0.6866 | AUROC model 0.661 raw 0.680
+epoch  10 | train 0.6943 | val 0.6710 | AUROC model 0.661 raw 0.680
+epoch  11 | train 0.6775 | val 0.6584 | AUROC model 0.660 raw 0.680
+epoch  12 | train 0.6713 | val 0.6494 | AUROC model 0.659 raw 0.680
+epoch  13 | train 0.6640 | val 0.6412 | AUROC model 0.660 raw 0.680
+epoch  14 | train 0.6573 | val 0.6357 | AUROC model 0.658 raw 0.680
+epoch  15 | train 0.6628 | val 0.6317 | AUROC model 0.655 raw 0.680
+epoch  16 | train 0.6439 | val 0.6290 | AUROC model 0.658 raw 0.680
+epoch  17 | train 0.6572 | val 0.6273 | AUROC model 0.658 raw 0.680
+epoch  18 | train 0.6452 | val 0.6267 | AUROC model 0.658 raw 0.680
+wandb: updating run metadata; uploading artifact transformer-hiucd-resnet50_l3
+wandb: uploading artifact transformer-hiucd-resnet50_l3
+wandb: uploading artifact transformer-hiucd-resnet50_l3; uploading wandb-summary.json; uploading config.yaml
+wandb: uploading artifact transformer-hiucd-resnet50_l3
+wandb: uploading artifact transformer-hiucd-resnet50_l3; uploading history steps 19-19, summary, console lines 24-26
+wandb: uploading artifact transformer-hiucd-resnet50_l3
+wandb: 
+wandb: Run history:
+wandb:           epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
+wandb:              lr ▅████▇▇▆▆▅▄▄▃▃▂▂▁▁▁▁
+wandb:      train/loss █▄▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    val/ap_model ▁██▆▇▆▅▅▆▄▄▄▄▄▃▂▃▃▃▄
+wandb:      val/ap_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: val/auroc_model ▁██▇█▇▆▆▆▅▅▅▅▅▄▃▄▄▄▄
+wandb:   val/auroc_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   val/feat_loss █▄▄▃▃▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:      checkpoint /home/gaetane/pdsece...
+wandb:           epoch 19
+wandb:              lr 0.0
+wandb:      train/loss 0.64389
+wandb:    val/ap_model 0.08173
+wandb:      val/ap_raw 0.088
+wandb: val/auroc_model 0.65829
+wandb:   val/auroc_raw 0.67987
+wandb:   val/feat_loss 0.62653
+wandb: 
+wandb: 🚀 View run hiucd-resnet50_l3-seed0-d5e15974 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/d5e15974
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_190005-d5e15974/logs
+epoch  19 | train 0.6439 | val 0.6265 | AUROC model 0.658 raw 0.680
+checkpoint saved: /home/gaetane/pdseceo/checkpoints/hiucd-resnet50_l3-seed0-d5e15974.pt
+next: python scripts/evaluate.py --ckpt /home/gaetane/pdseceo/checkpoints/hiucd-resnet50_l3-seed0-d5e15974.pt
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 17le5yvt
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_190318-17le5yvt
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run eval-val-hiucd-resnet50_l3-seed0-d5e15974
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/17le5yvt
+wandb: updating run metadata
+wandb: uploading media/images/hist/val_0_ba7c97ec5cf4b71a2d25.png; uploading media/images/mask/examples/overlay_model_0_8daad68cb896b368ca10.mask.png; uploading media/images/examples/overlay_model_0_3b93f26267630963185e.png; uploading media/images/mask/examples/overlay_model_0_0a2fa7ce196145e37573.mask.png; uploading media/images/mask/examples/overlay_model_0_f58f047e4f54d1afc586.mask.png (+ 19 more)
+wandb: uploading media/images/mask/examples/overlay_model_0_8daad68cb896b368ca10.mask.png; uploading media/images/examples/overlay_model_0_3b93f26267630963185e.png; uploading media/images/mask/examples/overlay_model_0_0a2fa7ce196145e37573.mask.png; uploading media/images/mask/examples/overlay_model_0_f58f047e4f54d1afc586.mask.png; uploading media/images/examples/raw_0_d7014ba7ec939d458057.png (+ 18 more)
+wandb: uploading media/images/examples/raw_0_d7014ba7ec939d458057.png; uploading media/images/examples/model_0_9b00e0a004be1dcdbbb2.png
+wandb: 
+wandb: Run summary:
+wandb:        train/ap_model 0.11058
+wandb:          train/ap_raw 0.12172
+wandb:     train/auroc_model 0.64774
+wandb:       train/auroc_raw 0.68468
+wandb:        train/f1_model 0.18823
+wandb:          train/f1_raw 0.20781
+wandb: train/threshold_model 0.65355
+wandb:   train/threshold_raw 0.95182
+wandb:          val/ap_model 0.08191
+wandb:            val/ap_raw 0.08835
+wandb:                   +13 ...
+wandb: 
+wandb: 🚀 View run eval-val-hiucd-resnet50_l3-seed0-d5e15974 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/17le5yvt
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 21 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_190318-17le5yvt/logs
+train/ap_model                   0.1106
+train/ap_raw                     0.1217
+train/auroc_model                0.6477
+train/auroc_raw                  0.6847
+train/f1_model                   0.1882
+train/f1_raw                     0.2078
+train/threshold_model            0.6536
+train/threshold_raw              0.9518
+val/ap_model                     0.0819
+val/ap_raw                       0.0884
+val/auroc_model                  0.6582
+val/auroc_raw                    0.6800
+val/f1_model                     0.1444
+val/f1_raw                       0.1558
+val/feat_loss                    0.6265
+val/precision_model              0.0823
+val/precision_raw                0.0896
+val/pred_pos_frac_model          0.3697
+val/pred_pos_frac_raw            0.3460
+val/recall_model                 0.5857
+val/recall_raw                   0.5966
+val/true_pos_frac_model          0.0520
+val/true_pos_frac_raw            0.0520
+========== levir | resnet50_l3 | seed 0 | lun. 26 oct. 2026 19:04:12 CET ==========
+[skip] /home/gaetane/pdseceo/features/levir/resnet50_l3/train.npz exists (use --overwrite to recompute)
+[skip] /home/gaetane/pdseceo/features/levir/resnet50_l3/val.npz exists (use --overwrite to recompute)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 3mkbtbqm
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_190431-3mkbtbqm
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run analysis-levir-resnet50_l3
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/3mkbtbqm
+wandb: updating run metadata; uploading artifact run-3mkbtbqm-results
+wandb: uploading artifact run-3mkbtbqm-results
+wandb: uploading media/images/histograms_0_8c9a4f9d7eb322ee34ba.png; uploading media/images/pca_scatter_0_87a67ab0affa90eb3b39.png; uploading media/images/pca_pairs_T1_T2_0_590ed38acda0cbea4d59.png; uploading wandb-metadata.json; uploading requirements.txt (+ 5 more)
+wandb: uploading media/images/pca_scatter_0_87a67ab0affa90eb3b39.png; uploading media/images/pca_pairs_T1_T2_0_590ed38acda0cbea4d59.png; uploading wandb-metadata.json; uploading requirements.txt; uploading media/images/roc_pr_0_6a3d947cf9dc4551c352.png (+ 4 more)
+wandb: uploading media/images/pca_pairs_T1_T2_0_590ed38acda0cbea4d59.png; uploading media/images/pca_pairs_T1_T2_all_0_ed3eda31de881870d7f8.png
+wandb: 
+wandb: Run summary:
+wandb:                val/ap_L2 0.11745
+wandb:            val/ap_cosine 0.18761
+wandb:             val/auroc_L2 0.81679
+wandb:         val/auroc_cosine 0.88475
+wandb:                val/f1_L2 0.19468
+wandb:            val/f1_cosine 0.27358
+wandb:         val/precision_L2 0.11973
+wandb:     val/precision_cosine 0.17937
+wandb:     val/pred_pos_frac_L2 0.18097
+wandb: val/pred_pos_frac_cosine 0.13373
+wandb:                       +4 ...
+wandb: 
+wandb: 🚀 View run analysis-levir-resnet50_l3 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/3mkbtbqm
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 4 W&B file(s), 6 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_190431-3mkbtbqm/logs
+train: 113664 patches (4.95% changed) | val: 16384 patches (4.16% changed)
+
+levir | resnet50_l3 — patch level, val (threshold from train)
+score                  auroc            ap            f1     precision        recall pred_pos_frac     threshold
+L2                    0.8168        0.1174        0.1947        0.1197        0.5205        0.1810        1.0992
+cosine                0.8848        0.1876        0.2736        0.1794        0.5762        0.1337        0.5376
+
+figures saved to /home/gaetane/pdseceo/results/levir/resnet50_l3
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run c08756d4
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_190445-c08756d4
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run levir-resnet50_l3-seed0-c08756d4
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/c08756d4
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+train: 444 samples, 27 batches | val: 64 samples
+epoch   0 | train 1.9362 | val 1.1538 | AUROC model 0.790 raw 0.831
+epoch   1 | train 1.1087 | val 0.8774 | AUROC model 0.804 raw 0.831
+epoch   2 | train 0.9250 | val 0.7993 | AUROC model 0.809 raw 0.831
+epoch   3 | train 0.8626 | val 0.7465 | AUROC model 0.802 raw 0.831
+epoch   4 | train 0.8000 | val 0.6956 | AUROC model 0.801 raw 0.831
+epoch   5 | train 0.7454 | val 0.6566 | AUROC model 0.796 raw 0.831
+epoch   6 | train 0.7146 | val 0.6237 | AUROC model 0.809 raw 0.831
+epoch   7 | train 0.6737 | val 0.6011 | AUROC model 0.807 raw 0.831
+epoch   8 | train 0.6534 | val 0.5814 | AUROC model 0.809 raw 0.831
+epoch   9 | train 0.6354 | val 0.5722 | AUROC model 0.796 raw 0.831
+epoch  10 | train 0.6136 | val 0.5578 | AUROC model 0.820 raw 0.831
+epoch  11 | train 0.6178 | val 0.5507 | AUROC model 0.812 raw 0.831
+epoch  12 | train 0.6065 | val 0.5428 | AUROC model 0.818 raw 0.831
+epoch  13 | train 0.5969 | val 0.5374 | AUROC model 0.813 raw 0.831
+epoch  14 | train 0.5942 | val 0.5336 | AUROC model 0.817 raw 0.831
+epoch  15 | train 0.5925 | val 0.5303 | AUROC model 0.817 raw 0.831
+epoch  16 | train 0.5783 | val 0.5291 | AUROC model 0.819 raw 0.831
+epoch  17 | train 0.5882 | val 0.5277 | AUROC model 0.816 raw 0.831
+epoch  18 | train 0.5815 | val 0.5272 | AUROC model 0.820 raw 0.831
+wandb: updating run metadata; uploading artifact transformer-levir-resnet50_l3
+wandb: uploading artifact transformer-levir-resnet50_l3
+wandb: uploading artifact transformer-levir-resnet50_l3; uploading history steps 18-19, summary, console lines 23-26
+wandb: uploading artifact transformer-levir-resnet50_l3
+wandb: uploading artifact transformer-levir-resnet50_l3; uploading config.yaml; uploading output.log
+wandb: uploading artifact transformer-levir-resnet50_l3
+wandb: 
+wandb: Run history:
+wandb:           epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
+wandb:              lr ▅████▇▇▆▆▅▄▄▃▃▂▂▁▁▁▁
+wandb:      train/loss █▄▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    val/ap_model ▂▅▅▃▃▁▅▄▄▁█▅▇▆▇▇█▇█▇
+wandb:      val/ap_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: val/auroc_model ▁▄▅▄▄▂▆▅▅▂█▆█▆▇▇█▇█▇
+wandb:   val/auroc_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   val/feat_loss █▅▄▃▃▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:      checkpoint /home/gaetane/pdsece...
+wandb:           epoch 19
+wandb:              lr 0.0
+wandb:      train/loss 0.58305
+wandb:    val/ap_model 0.11626
+wandb:      val/ap_raw 0.12726
+wandb: val/auroc_model 0.81768
+wandb:   val/auroc_raw 0.83114
+wandb:   val/feat_loss 0.52699
+wandb: 
+wandb: 🚀 View run levir-resnet50_l3-seed0-c08756d4 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/c08756d4
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_190445-c08756d4/logs
+epoch  19 | train 0.5831 | val 0.5270 | AUROC model 0.818 raw 0.831
+checkpoint saved: /home/gaetane/pdseceo/checkpoints/levir-resnet50_l3-seed0-c08756d4.pt
+next: python scripts/evaluate.py --ckpt /home/gaetane/pdseceo/checkpoints/levir-resnet50_l3-seed0-c08756d4.pt
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run l455bs6x
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_190818-l455bs6x
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run eval-val-levir-resnet50_l3-seed0-c08756d4
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/l455bs6x
+wandb: updating run metadata
+wandb: uploading media/images/mask/examples/overlay_model_0_a6675787afd8f987e36d.mask.png; uploading media/images/hist/train_0_677138f2045cf954956e.png; uploading media/images/hist/val_0_e67f7e7e588622455501.png; uploading media/images/examples/overlay_model_0_3b93f26267630963185e.png; uploading media/images/examples/overlay_model_0_ab319f0eb1a6ad8aad19.png (+ 4 more)
+wandb: uploading media/images/examples/model_0_71b3d1d05dbe2ef4afc0.png; uploading media/images/examples/raw_0_029ca6b44d70915d798d.png; uploading media/images/mask/examples/overlay_model_0_39962cd5bc9f4f044634.mask.png; uploading media/images/mask/examples/overlay_model_0_b43adfc5e453a12f11b9.mask.png; uploading media/images/examples/overlay_model_0_7287b50cf83727bb1914.png (+ 14 more)
+wandb: uploading media/images/examples/model_0_71b3d1d05dbe2ef4afc0.png; uploading media/images/examples/raw_0_029ca6b44d70915d798d.png
+wandb: 
+wandb: Run summary:
+wandb:        train/ap_model 0.11273
+wandb:          train/ap_raw 0.12444
+wandb:     train/auroc_model 0.77686
+wandb:       train/auroc_raw 0.79665
+wandb:        train/f1_model 0.19749
+wandb:          train/f1_raw 0.20975
+wandb: train/threshold_model 0.6626
+wandb:   train/threshold_raw 1.066
+wandb:          val/ap_model 0.11692
+wandb:            val/ap_raw 0.12784
+wandb:                   +13 ...
+wandb: 
+wandb: 🚀 View run eval-val-levir-resnet50_l3-seed0-c08756d4 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/l455bs6x
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 24 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_190818-l455bs6x/logs
+train/ap_model                   0.1127
+train/ap_raw                     0.1244
+train/auroc_model                0.7769
+train/auroc_raw                  0.7967
+train/f1_model                   0.1975
+train/f1_raw                     0.2097
+train/threshold_model            0.6626
+train/threshold_raw              1.0660
+val/ap_model                     0.1169
+val/ap_raw                       0.1278
+val/auroc_model                  0.8181
+val/auroc_raw                    0.8318
+val/f1_model                     0.2024
+val/f1_raw                       0.2132
+val/feat_loss                    0.5270
+val/precision_model              0.1193
+val/precision_raw                0.1302
+val/pred_pos_frac_model          0.2429
+val/pred_pos_frac_raw            0.1967
+val/recall_model                 0.6654
+val/recall_raw                   0.5881
+val/true_pos_frac_model          0.0436
+val/true_pos_frac_raw            0.0436
+========== hiucd | dinov3_vits16 | seed 0 | lun. 26 oct. 2026 19:09:26 CET ==========
+[skip] /home/gaetane/pdseceo/features/hiucd/dinov3_vits16/train.npz exists (use --overwrite to recompute)
+[skip] /home/gaetane/pdseceo/features/hiucd/dinov3_vits16/val.npz exists (use --overwrite to recompute)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 2kwon5j8
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_190942-2kwon5j8
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run analysis-hiucd-dinov3_vits16
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/2kwon5j8
+wandb: updating run metadata; uploading artifact run-2kwon5j8-results; uploading artifact run-2kwon5j8-transitions_L2_table; uploading artifact run-2kwon5j8-class_similarity_pca_table; uploading artifact run-2kwon5j8-class_similarity_table (+ 10 more)
+wandb: uploading artifact run-2kwon5j8-results; uploading artifact run-2kwon5j8-transitions_L2_table; uploading artifact run-2kwon5j8-class_similarity_pca_table; uploading artifact run-2kwon5j8-class_similarity_table; uploading media/images/pca_pairs_T1_T2_all_0_0d6002875ade10e76c17.png (+ 12 more)
+wandb: uploading artifact run-2kwon5j8-results; uploading artifact run-2kwon5j8-transitions_L2_table; uploading artifact run-2kwon5j8-class_similarity_pca_table; uploading artifact run-2kwon5j8-class_similarity_table; uploading media/images/pca_classes_T1_0_eb1b6d8dd6c649aa6531.png (+ 2 more)
+wandb: uploading artifact run-2kwon5j8-transitions_L2_table; uploading artifact run-2kwon5j8-class_similarity_pca_table; uploading artifact run-2kwon5j8-class_similarity_table
+wandb: uploading artifact run-2kwon5j8-class_similarity_pca_table; uploading artifact run-2kwon5j8-class_similarity_table
+wandb: uploading config.yaml
+wandb: 
+wandb: Run summary:
+wandb:                val/ap_L2 0.39666
+wandb:            val/ap_cosine 0.36229
+wandb:             val/auroc_L2 0.91387
+wandb:         val/auroc_cosine 0.91614
+wandb:                val/f1_L2 0.4379
+wandb:            val/f1_cosine 0.46593
+wandb:         val/precision_L2 0.39937
+wandb:     val/precision_cosine 0.39694
+wandb:     val/pred_pos_frac_L2 0.06283
+wandb: val/pred_pos_frac_cosine 0.07356
+wandb:                       +4 ...
+wandb: 
+wandb: 🚀 View run analysis-hiucd-dinov3_vits16 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/2kwon5j8
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 4 W&B file(s), 13 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_190942-2kwon5j8/logs
+train: 76800 patches (7.40% changed) | val: 15104 patches (5.18% changed)
+
+hiucd | dinov3_vits16 — patch level, val (threshold from train)
+score                  auroc            ap            f1     precision        recall pred_pos_frac     threshold
+L2                    0.9139        0.3967        0.4379        0.3994        0.4847        0.0628        0.0871
+cosine                0.9161        0.3623        0.4659        0.3969        0.5639        0.0736        0.3092
+class similarity k=   2  within 0.612  max_between 0.475  margin +0.137
+class similarity k=   5  within 0.576  max_between 0.345  margin +0.231
+class similarity k=  10  within 0.538  max_between 0.267  margin +0.271
+class similarity k=  20  within 0.489  max_between 0.217  margin +0.272
+class similarity k=  50  within 0.435  max_between 0.168  margin +0.267
+class similarity k= 100  within 0.405  max_between 0.144  margin +0.261
+class similarity k= 384  within 0.369  max_between 0.119  margin +0.250
+
+figures saved to /home/gaetane/pdseceo/results/hiucd/dinov3_vits16
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run c944eb91
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_191000-c944eb91
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run hiucd-dinov3_vits16-seed0-c944eb91
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/c944eb91
+train: 300 samples, 18 batches | val: 59 samples
+Loading weights:   0%|          | 0/211 [00:00<?, ?it/s]Loading weights: 100%|██████████| 211/211 [00:00<00:00, 6352.27it/s]
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+epoch   0 | train 1.9644 | val 0.8888 | AUROC model 0.737 raw 0.927
+epoch   1 | train 0.6625 | val 0.2383 | AUROC model 0.733 raw 0.927
+epoch   2 | train 0.3826 | val 0.1742 | AUROC model 0.732 raw 0.927
+epoch   3 | train 0.2999 | val 0.1584 | AUROC model 0.744 raw 0.927
+epoch   4 | train 0.2490 | val 0.1342 | AUROC model 0.768 raw 0.927
+epoch   5 | train 0.2146 | val 0.1196 | AUROC model 0.782 raw 0.927
+epoch   6 | train 0.1906 | val 0.1102 | AUROC model 0.814 raw 0.927
+epoch   7 | train 0.1712 | val 0.1019 | AUROC model 0.812 raw 0.927
+epoch   8 | train 0.1571 | val 0.0943 | AUROC model 0.835 raw 0.927
+epoch   9 | train 0.1470 | val 0.0887 | AUROC model 0.824 raw 0.927
+epoch  10 | train 0.1386 | val 0.0834 | AUROC model 0.836 raw 0.927
+epoch  11 | train 0.1303 | val 0.0796 | AUROC model 0.816 raw 0.927
+epoch  12 | train 0.1248 | val 0.0768 | AUROC model 0.820 raw 0.927
+epoch  13 | train 0.1190 | val 0.0747 | AUROC model 0.833 raw 0.927
+epoch  14 | train 0.1163 | val 0.0728 | AUROC model 0.825 raw 0.927
+epoch  15 | train 0.1167 | val 0.0712 | AUROC model 0.839 raw 0.927
+epoch  16 | train 0.1119 | val 0.0702 | AUROC model 0.841 raw 0.927
+epoch  17 | train 0.1117 | val 0.0697 | AUROC model 0.841 raw 0.927
+epoch  18 | train 0.1103 | val 0.0694 | AUROC model 0.840 raw 0.927
+wandb: updating run metadata; uploading artifact transformer-hiucd-dinov3_vits16
+wandb: uploading artifact transformer-hiucd-dinov3_vits16
+wandb: uploading wandb-summary.json; uploading config.yaml; uploading output.log
+wandb: uploading output.log
+wandb: 
+wandb: Run history:
+wandb:           epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
+wandb:              lr ▅████▇▇▆▆▅▄▄▃▃▂▂▁▁▁▁
+wandb:      train/loss █▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    val/ap_model ▂▁▁▁▃▃▆▅▇▇█▆▆▇▇█████
+wandb:      val/ap_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: val/auroc_model ▁▁▁▂▃▄▆▆█▇█▆▇▇▇█████
+wandb:   val/auroc_raw ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   val/feat_loss █▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:      checkpoint /home/gaetane/pdsece...
+wandb:           epoch 19
+wandb:              lr 0.0
+wandb:      train/loss 0.11016
+wandb:    val/ap_model 0.14972
+wandb:      val/ap_raw 0.45019
+wandb: val/auroc_model 0.84032
+wandb:   val/auroc_raw 0.92724
+wandb:   val/feat_loss 0.06941
+wandb: 
+wandb: 🚀 View run hiucd-dinov3_vits16-seed0-c944eb91 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/c944eb91
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 0 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_191000-c944eb91/logs
+epoch  19 | train 0.1102 | val 0.0694 | AUROC model 0.840 raw 0.927
+checkpoint saved: /home/gaetane/pdseceo/checkpoints/hiucd-dinov3_vits16-seed0-c944eb91.pt
+next: python scripts/evaluate.py --ckpt /home/gaetane/pdseceo/checkpoints/hiucd-dinov3_vits16-seed0-c944eb91.pt
+Loading weights:   0%|          | 0/211 [00:00<?, ?it/s]Loading weights: 100%|██████████| 211/211 [00:00<00:00, 6647.77it/s]
+/home/gaetane/pdseceo/src/pds_cd/model.py:53: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
+/home/gaetane/pdseceo/src/pds_cd/model.py:60: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run ikoqwbjv
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_191306-ikoqwbjv
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run eval-val-hiucd-dinov3_vits16-seed0-c944eb91
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/ikoqwbjv
+wandb: updating run metadata
+wandb: uploading media/images/mask/examples/overlay_model_0_f58f047e4f54d1afc586.mask.png; uploading media/images/hist/val_0_cff8501963c6190d936e.png; uploading media/images/examples/overlay_model_0_b3c7808b2e301049208d.png; uploading output.log; uploading media/images/mask/examples/overlay_model_0_0a231bd083b7eb7b8656.mask.png (+ 16 more)
+wandb: uploading media/images/hist/val_0_cff8501963c6190d936e.png; uploading media/images/examples/overlay_model_0_b3c7808b2e301049208d.png; uploading output.log; uploading media/images/mask/examples/overlay_model_0_0a231bd083b7eb7b8656.mask.png; uploading media/images/examples/overlay_model_0_ea144a93c51d63c05957.png (+ 14 more)
+wandb: uploading media/images/examples/model_0_3891755a2155e7f2da66.png; uploading media/images/examples/raw_0_57c083b346b31e66206f.png
+wandb: 
+wandb: Run summary:
+wandb:        train/ap_model 0.28964
+wandb:          train/ap_raw 0.50734
+wandb:     train/auroc_model 0.85569
+wandb:       train/auroc_raw 0.91469
+wandb:        train/f1_model 0.40064
+wandb:          train/f1_raw 0.53088
+wandb: train/threshold_model 0.09528
+wandb:   train/threshold_raw 0.08283
+wandb:          val/ap_model 0.14973
+wandb:            val/ap_raw 0.45043
+wandb:                   +13 ...
+wandb: 
+wandb: 🚀 View run eval-val-hiucd-dinov3_vits16-seed0-c944eb91 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/ikoqwbjv
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 5 W&B file(s), 18 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_191306-ikoqwbjv/logs
+train/ap_model                   0.2896
+train/ap_raw                     0.5073
+train/auroc_model                0.8557
+train/auroc_raw                  0.9147
+train/f1_model                   0.4006
+train/f1_raw                     0.5309
+train/threshold_model            0.0953
+train/threshold_raw              0.0828
+val/ap_model                     0.1497
+val/ap_raw                       0.4504
+val/auroc_model                  0.8401
+val/auroc_raw                    0.9270
+val/f1_model                     0.2471
+val/f1_raw                       0.4814
+val/feat_loss                    0.0694
+val/precision_model              0.1882
+val/precision_raw                0.4228
+val/pred_pos_frac_model          0.0993
+val/pred_pos_frac_raw            0.0687
+val/recall_model                 0.3596
+val/recall_raw                   0.5588
+val/true_pos_frac_model          0.0520
+val/true_pos_frac_raw            0.0520
+========== levir | dinov3_vits16 | seed 0 | lun. 26 oct. 2026 19:13:57 CET ==========
+[skip] /home/gaetane/pdseceo/features/levir/dinov3_vits16/train.npz exists (use --overwrite to recompute)
+[skip] /home/gaetane/pdseceo/features/levir/dinov3_vits16/val.npz exists (use --overwrite to recompute)
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/gaetane/.netrc.
+wandb: Currently logged in as: gaetane-vanderbruggen (gaetane-vanderbruggen-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 2olgi779
+wandb: Tracking run with wandb version 0.30.0
+wandb: Run data is saved locally in /home/gaetane/pdseceo/wandb/run-20261026_191409-2olgi779
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run analysis-levir-dinov3_vits16
+wandb: ⭐️ View project at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: 🚀 View run at https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/2olgi779
+wandb: updating run metadata; uploading artifact run-2olgi779-results
+wandb: uploading artifact run-2olgi779-results
+wandb: uploading media/images/histograms_0_86e21487432f5f749359.png; uploading media/images/pca_pairs_T1_T2_0_444277ccca9b7ff32f3b.png; uploading media/images/pca_pairs_T1_T2_all_0_b3af56924d99d1428763.png; uploading media/table/results_0_b27ee84ec407c21f96c6.table.json; uploading wandb-summary.json (+ 5 more)
+wandb: uploading media/images/pca_pairs_T1_T2_0_444277ccca9b7ff32f3b.png; uploading media/images/pca_pairs_T1_T2_all_0_b3af56924d99d1428763.png; uploading media/table/results_0_b27ee84ec407c21f96c6.table.json; uploading wandb-summary.json; uploading config.yaml (+ 4 more)
+wandb: uploading media/images/pca_pairs_T1_T2_0_444277ccca9b7ff32f3b.png
+wandb: uploading history steps 0-0, summary
+wandb: 
+wandb: Run summary:
+wandb:                val/ap_L2 0.21134
+wandb:            val/ap_cosine 0.24569
+wandb:             val/auroc_L2 0.90115
+wandb:         val/auroc_cosine 0.9116
+wandb:                val/f1_L2 0.36726
+wandb:            val/f1_cosine 0.37247
+wandb:         val/precision_L2 0.26299
+wandb:     val/precision_cosine 0.26354
+wandb:     val/pred_pos_frac_L2 0.09631
+wandb: val/pred_pos_frac_cosine 0.10028
+wandb:                       +4 ...
+wandb: 
+wandb: 🚀 View run analysis-levir-dinov3_vits16 at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd/runs/2olgi779
+wandb: ⭐️ View project at: https://wandb.ai/gaetane-vanderbruggen-epfl/pds-cd
+wandb: Synced 4 W&B file(s), 6 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261026_191409-2olgi779/logs
+train: 113664 patches (4.95% changed) | val: 16384 patches (4.16% changed)
+
+levir | dinov3_vits16 — patch level, val (threshold from train)
+score                  auroc            ap            f1     precision        recall pred_pos_frac     threshold
+L2                    0.9011        0.2113        0.3673        0.2630        0.6085        0.0963        0.1069
+cosine                0.9116        0.2457        0.3725        0.2635        0.6349        0.1003        0.3651
+
+figures saved to /home/gaetane/pdseceo/results/levir/dinov3_vits16

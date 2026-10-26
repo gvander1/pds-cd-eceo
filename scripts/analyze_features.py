@@ -2,8 +2,7 @@
 
     python scripts/analyze_features.py --data levir
     python scripts/analyze_features.py --data hiucd --pca_sweep
-    python scripts/analyze_features.py --data levir --probe_input concat --no_wandb
-
+    
 Needs features/<dataset>/<encoder>/{train,val}.npz  (python scripts/extract_features.py --data ...).
 Protocol for every score: threshold = best F1 on TRAIN patches, metrics on VAL patches.
 Figures are also saved to results/<dataset>/<encoder>/.
@@ -26,8 +25,8 @@ METRICS = ["auroc", "ap", "f1", "precision", "recall", "pred_pos_frac", "thresho
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--probe_input", default="absdiff", choices=["absdiff", "diff", "concat"])
-    p.add_argument("--neg_ratio", type=float, default=1.0, help="unchanged/changed ratio for probe & LDA training")
+    # p.add_argument("--probe_input", default="absdiff", choices=["absdiff", "diff", "concat"])
+    # p.add_argument("--neg_ratio", type=float, default=1.0, help="unchanged/changed ratio for probe & LDA training")
     p.add_argument("--pca_sweep", action="store_true", help="step 4: AUROC/AP vs number of PCA components")
     p.add_argument("--no_wandb", action="store_true")
     args, rest = p.parse_known_args()
@@ -44,20 +43,10 @@ def main():
     s_tr["L2"], s_va["L2"] = A.l2_distance(tr["x"], tr["y"]), A.l2_distance(va["x"], va["y"])
     s_tr["cosine"], s_va["cosine"] = A.cosine_distance(tr["x"], tr["y"]), A.cosine_distance(va["x"], va["y"])
 
-    X_tr, X_va = A.probe_input(tr["x"], tr["y"], args.probe_input), A.probe_input(va["x"], va["y"], args.probe_input)
-    probe = A.fit_probe(X_tr, lab_tr, neg_ratio=args.neg_ratio)
-    s_tr["probe"], s_va["probe"] = A.model_scores(probe, X_tr), A.model_scores(probe, X_va)
-    # lda = A.fit_lda(X_tr, lab_tr, neg_ratio=args.neg_ratio)
-    # s_tr["LDA"], s_va["LDA"] = A.model_scores(lda, X_tr), A.model_scores(lda, X_va)
-
-    if args.probe_input != "absdiff":
-        X_tr, X_va = A.probe_input(tr["x"], tr["y"]), A.probe_input(va["x"], va["y"])
-    # ch_tr = A.per_channel_auroc(X_tr, lab_tr)
-    # ch_va = A.per_channel_auroc(X_va, lab_va)
-    # best = int(np.argmax(ch_tr))  # chosen on TRAIN, reported on VAL
-    # s_tr["best_channel"], s_va["best_channel"] = X_tr[:, best], X_va[:, best]
-    pca_fig, _ = V.pca_scatter_figure(X_tr, X_va, lab_va, title=f"{tag} | val | PCA of |y - x|")   # NEW
-    del X_tr, X_va
+    # |y - x| per patch, only for the PCA figure (no labels used to compute it)
+    D_tr, D_va = A.abs_difference(tr["x"], tr["y"]), A.abs_difference(va["x"], va["y"])
+    pca_fig, _ = V.pca_scatter_figure(D_tr, D_va, lab_va, title=f"{tag} | val | PCA of |y - x|")
+    del D_tr, D_va
 
     results = {name: A.evaluate_score(s_tr[name], lab_tr, s_va[name], lab_va) for name in s_va}
     print(f"\n{tag} — patch level, val (threshold from train)")
@@ -122,7 +111,7 @@ def main():
     if not args.no_wandb:
         import wandb
         run = wandb.init(project=cfg["project"], job_type="analysis", dir=ROOT, group=f"{ds}-{enc}",
-                         name=f"analysis-{ds}-{enc}-{args.probe_input}", tags=[ds, enc, "analysis"],
+                         name=f"analysis-{ds}-{enc}", tags=[ds, enc, "analysis"],
                          config={**cfg, **vars(args),
                                  "n_patches_train": len(lab_tr), "n_patches_val": len(lab_va)})
         run.summary.update({f"val/{m}_{name}": r[m] for name, r in results.items() for m in METRICS})
