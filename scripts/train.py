@@ -18,6 +18,26 @@ from pds_cd.metrics import METHODS, collect_errors, separability
 from pds_cd.model import build_models
 from pds_cd.utils import fixed_rng, get_device, seed_everything
 
+def masked_mse(pred, target, change, mode="none", thr=0.0):
+    """Training loss. pred, target: (B, C, h, w) features; change: (B, H, W) pixel change map (1 = change).
+    mode "none"  : plain MSE over every patch (old behaviour).
+    mode "patch" : MSE only over patches whose fraction of changed pixels is <= thr (unchanged patches);
+                   changed patches are still in the transformer INPUT (context), just not in the loss.
+    mode "crop"  : MSE only over crops in which every patch is unchanged; crops with any change are ignored.
+    Returns (loss, fraction of patches kept); loss is None if no patch is kept in this batch."""
+    if mode == "none":
+        return F.mse_loss(pred, target), 1.0
+    frac = F.adaptive_avg_pool2d(change.float().unsqueeze(1), pred.shape[-2:])   # (B, 1, h, w) changed fraction
+    keep = (frac <= thr).float()
+    if mode == "crop":
+        keep = keep.amin(dim=(2, 3), keepdim=True).expand_as(keep).contiguous()   # 1 only if the whole crop is unchanged
+    elif mode != "patch":
+        raise ValueError(f"train_unchanged_only must be none, patch or crop, got {mode!r}")
+    n = keep.sum()
+    if n == 0:
+        return None, 0.0
+    sq = ((pred - target) ** 2).mean(dim=1, keepdim=True)                         # (B, 1, h, w) per-patch MSE
+    return (sq * keep).sum() / n, float(keep.mean())
 
 def main():
     cfg = load_config() #builds the config dict
@@ -46,23 +66,30 @@ def main():
     for ep in range(cfg["epochs"]):
         tr.train() #turns on trainnf mode : dropout active
         enc.eval() #keeps the encoder in inference mode because the evaluation at the end of each epoch also calls .eval(), and the next epoch must switch the transformer back to .train()
-        tot = 0.0 #accumulates the loss to average it over the epoch 
+        tot, n_used, kept = 0.0, 0, 0.0 #accumulates the loss (and the kept-patch fraction) to average them over the epoch
         for batch in train_loader:
             im1, im2 = batch[0].to(device), batch[1].to(device) #takes t1 and t2 and moves them to the GPU
+            change = batch[2].to(device) #pixel change map, used only to mask the loss (val is never masked)
             with torch.no_grad(): #encodes both dates --> each image put into the feature embedding space, no gradient computed for the encoder
                 x, y = enc(im1), enc(im2)
-            loss = F.mse_loss(tr(x), y) #transformer takes the t1 embedding and tries to predict the t2 embedding, loss is the mean squared error between the predicted and actual t2 embeddings
+            loss, kept_frac = masked_mse(tr(x), y, change, cfg["train_unchanged_only"], cfg["train_unchanged_thr"])
+            kept += kept_frac
+            if loss is None: #no unchanged patch in this batch: nothing to learn from, skip it
+                sched.step()
+                continue
             opt.zero_grad() #clears the gradients of the previous batch
             loss.backward() #compute the gradients of the loss w.r.t. the transformer parameters
             opt.step() #updates the weights 
             sched.step() #move the learning rate one step alorg the OneCycle schedule
             tot += loss.item() #.item() turns the 1-element tensor into a plain Python float
+            n_used += 1
 
         with fixed_rng(cfg["eval_seed"]):  # same val crops every epoch, training RNG untouched
             val = collect_errors(val_loader, enc, tr, device,
                                  max_pixels=cfg["epoch_eval_pixels"], seed=cfg["eval_seed"])
         #collect_errors runs the whole val set and retiurns val["model"]: per-pixel error ‖x̂ − y‖² (with transformer), val["raw"]: per-pixel error ‖x − y‖² (without transformer), val["labels"]: ground truth labels, val["feat_loss"]: mean of val["model"] over all pixels
-        log = {"epoch": ep, "train/loss": tot / len(train_loader),
+        log = {"epoch": ep, "train/loss": tot / max(n_used, 1),
+               "train/kept_patch_frac": kept / len(train_loader),
                "lr": sched.get_last_lr()[0], "val/feat_loss": val["feat_loss"]}
         #log builds the dictionary of metrics to log to WandB, including the average training loss, the current learning rate, and the validation feature loss
         for m in METHODS:

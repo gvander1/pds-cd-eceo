@@ -41,28 +41,57 @@ class DinoV2Encoder(nn.Module):
 #transformer encoder decoder
 class FeatureTransformer(nn.Module):
     def __init__(self, embed_dim=384, n_heads=6, n_encoder_layers=3, n_decoder_layers=3, #comme dans foundad paper (nb de layer)
-                 mlp_ratio=4, dropout=0.1, n_tokens=256):
+                 mlp_ratio=4, dropout=0.1, n_tokens=256, residual_output=False,
+                 decoder_type="self", decoder_query="learned"):
         super().__init__()
         self.embed_dim = embed_dim
 
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=embed_dim, nhead=n_heads,
             dim_feedforward=embed_dim * mlp_ratio,
-            dropout=dropout, batch_first=True, norm_first=True
+            dropout=dropout, batch_first=True, norm_first=True #pre-norm each block normalizes its input before the self-attention and feedforward layers, which can help with training stability and convergence
         )
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_encoder_layers)
 
-        decoder_layer = nn.TransformerEncoderLayer(
-            d_model=embed_dim, nhead=n_heads,
-            dim_feedforward=embed_dim * mlp_ratio,
-            dropout=dropout, batch_first=True, norm_first=True
-        )
-        self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+        # decoder_type="self" : second half = more self-attention layers (old model, old checkpoints).
+        # decoder_type="cross": real transformer decoder. Each layer: self-attention between the decoder
+        #   tokens, then CROSS-attention (queries = decoder tokens, keys/values = encoder output), then MLP.
+        #   decoder_query = what the decoder tokens start from:
+        #     "learned": one learned query vector per grid position (no direct access to T1 values:
+        #                everything about the image must come through cross-attention)
+        #     "input"  : the T1 tokens + positional embedding (same input as the encoder)
+        self.decoder_type, self.decoder_query = decoder_type, decoder_query
+        if decoder_type == "self":
+            decoder_layer = nn.TransformerEncoderLayer(
+                d_model=embed_dim, nhead=n_heads,
+                dim_feedforward=embed_dim * mlp_ratio,
+                dropout=dropout, batch_first=True, norm_first=True
+            )
+            self.transformer_decoder = nn.TransformerEncoder(decoder_layer, num_layers=n_decoder_layers)
+        elif decoder_type == "cross":
+            decoder_layer = nn.TransformerDecoderLayer(
+                d_model=embed_dim, nhead=n_heads,
+                dim_feedforward=embed_dim * mlp_ratio,
+                dropout=dropout, batch_first=True, norm_first=True
+            )
+            self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=n_decoder_layers)
+            if decoder_query == "learned":
+                self.query_embed = nn.Parameter(torch.zeros(1, n_tokens, embed_dim))
+                nn.init.trunc_normal_(self.query_embed, std=0.02)
+            elif decoder_query != "input":
+                raise ValueError(f"decoder_query must be learned or input, got {decoder_query!r}")
+        else:
+            raise ValueError(f"decoder_type must be self or cross, got {decoder_type!r}")
 
         # créé ici pour être enregistré avant la création de l'optimizer
         self.pos_embed = nn.Parameter(torch.zeros(1, n_tokens, embed_dim))
         nn.init.trunc_normal_(self.pos_embed, std=0.02)
-
+        self.residual_output = residual_output
+        if residual_output:
+            self.out_norm = nn.LayerNorm(embed_dim)
+            self.out_head = nn.Linear(embed_dim, embed_dim)
+            nn.init.zeros_(self.out_head.weight)
+            nn.init.zeros_(self.out_head.bias)
     def forward(self, x_grid):
         B, C, H, W = x_grid.shape
         tokens = x_grid.flatten(2).permute(0, 2, 1)  # (B, H*W, C)
@@ -71,7 +100,14 @@ class FeatureTransformer(nn.Module):
         tokens = tokens + self.pos_embed
 
         encoded = self.transformer_encoder(tokens)
-        decoded = self.transformer_decoder(encoded)
+        if self.decoder_type == "self":
+            decoded = self.transformer_decoder(encoded)
+        else:
+            queries = self.query_embed.expand(B, -1, -1) if self.decoder_query == "learned" else tokens
+            decoded = self.transformer_decoder(tgt=queries, memory=encoded)   # no mask: every token sees all
+        if self.residual_output:
+            x_tokens = x_grid.flatten(2).permute(0, 2, 1)                 # T1 tokens, without pos_embed
+            decoded = x_tokens + self.out_head(self.out_norm(decoded))    # copy T1 + learned correction
         return decoded.permute(0, 2, 1).reshape(B, C, H, W)
     
 class ChangeDetectionModel(nn.Module):
@@ -266,5 +302,8 @@ def build_models(cfg, device):
     tr = FeatureTransformer(embed_dim=enc.out_channels, n_heads=cfg["n_heads"],
                             n_encoder_layers=cfg["n_encoder_layers"],
                             n_decoder_layers=cfg["n_decoder_layers"],
-                            dropout=cfg["dropout"], n_tokens=enc.grid_size ** 2).to(device)
+                            dropout=cfg["dropout"], n_tokens=enc.grid_size ** 2,
+                            residual_output=cfg.get("residual_output", False),  # False for old checkpoints
+                            decoder_type=cfg.get("decoder_type", "self"),        # "self" for old checkpoints
+                            decoder_query=cfg.get("decoder_query", "learned")).to(device)  # False for old checkpoints
     return enc, tr
