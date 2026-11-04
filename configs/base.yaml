@@ -21,6 +21,7 @@ epochs: 20
 batch_size: 16
 lr: 3.0e-4                 # max lr of OneCycle
 weight_decay: 1.0e-2
+no_decay_norm_bias: false  # true = no weight decay on biases, LayerNorm γ/β, pos_embed, query_embed
 pct_start: 0.1
 augment: true              # flips + 90° rotations on train only (same for both datasets)
 num_workers: 4

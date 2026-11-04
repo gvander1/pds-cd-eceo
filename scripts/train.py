@@ -58,8 +58,18 @@ def main():
                             num_workers=cfg["num_workers"])
     print(f"train: {len(train_ds)} samples, {len(train_loader)} batches | val: {len(val_ds)} samples")
 
-    enc, tr = build_models(cfg, device)
-    opt = torch.optim.AdamW(tr.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
+    enc, tr = build_models(cfg, device)                       # unchanged (line 61)
+
+    if cfg["no_decay_norm_bias"]:  # no weight decay on biases, LayerNorm γ/β, pos_embed, query_embed
+        decay, no_decay = [], []
+        for name, p in tr.named_parameters():
+            (no_decay if p.ndim <= 1 or name in ("pos_embed", "query_embed") else decay).append(p)
+        param_groups = [{"params": decay, "weight_decay": cfg["weight_decay"]},
+                        {"params": no_decay, "weight_decay": 0.0}]
+    else:                          # old behaviour: weight decay on every parameter
+        param_groups = [{"params": list(tr.parameters()), "weight_decay": cfg["weight_decay"]}]
+    opt = torch.optim.AdamW(param_groups, lr=cfg["lr"])
+
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=cfg["lr"], pct_start=cfg["pct_start"],
                                                 total_steps=cfg["epochs"] * len(train_loader)) #learning rate schedule, learning rate raises up to 10% of the 
 
@@ -86,11 +96,14 @@ def main():
 
         with fixed_rng(cfg["eval_seed"]):  # same val crops every epoch, training RNG untouched
             val = collect_errors(val_loader, enc, tr, device,
-                                 max_pixels=cfg["epoch_eval_pixels"], seed=cfg["eval_seed"])
+                                 max_pixels=cfg["epoch_eval_pixels"], seed=cfg["eval_seed"],
+                                 unchanged_thr=cfg["train_unchanged_thr"])
         #collect_errors runs the whole val set and retiurns val["model"]: per-pixel error ‖x̂ − y‖² (with transformer), val["raw"]: per-pixel error ‖x − y‖² (without transformer), val["labels"]: ground truth labels, val["feat_loss"]: mean of val["model"] over all pixels
         log = {"epoch": ep, "train/loss": tot / max(n_used, 1),
                "train/kept_patch_frac": kept / len(train_loader),
-               "lr": sched.get_last_lr()[0], "val/feat_loss": val["feat_loss"]}
+               "lr": sched.get_last_lr()[0], "val/feat_loss": val["feat_loss"],
+               "val/feat_loss_unchanged": val["feat_loss_unchanged"],           # x_hat vs y, unchanged patches only
+               "val/feat_loss_unchanged_raw": val["feat_loss_unchanged_raw"]}
         #log builds the dictionary of metrics to log to WandB, including the average training loss, the current learning rate, and the validation feature loss
         for m in METHODS:
             for k, v in separability(val[m], val["labels"]).items():

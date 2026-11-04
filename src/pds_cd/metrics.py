@@ -20,7 +20,7 @@ def error_map(pred, target, size):
 
 
 @torch.no_grad()
-def collect_errors(loader, enc, tr, device, max_pixels=None, seed=0):
+def collect_errors(loader, enc, tr, device, max_pixels=None, seed=0, unchanged_thr=0.0):
     """Run the whole loader once. Returns
         {"model": float32 array, "raw": float32 array, "labels": uint8 array, "feat_loss": float}
     feat_loss = mean MSE(transformer(x), y) in feature space (same quantity as the train loss).
@@ -32,10 +32,16 @@ def collect_errors(loader, enc, tr, device, max_pixels=None, seed=0):
     labels, feat_loss, n_batches = [], 0.0, 0
     for batch in loader:
         im1, im2, cm = batch[0].to(device), batch[1].to(device), batch[2]
+        unch_sum, unch_n = {"model": 0.0, "raw": 0.0}, 0.0   # sum of per-patch MSE / number of unchanged patches
         x, y = enc(im1), enc(im2)
         x_hat = tr(x)
         feat_loss += F.mse_loss(x_hat, y).item()
         n_batches += 1
+        frac = F.adaptive_avg_pool2d(cm.to(device).float().unsqueeze(1), y.shape[-2:])   # (B, 1, h, w)
+        keep = (frac <= unchanged_thr).float()
+        for m, pred in (("model", x_hat), ("raw", x)):
+            unch_sum[m] += (((pred - y) ** 2).mean(dim=1, keepdim=True) * keep).sum().item()
+        unch_n += keep.sum().item()
         errs["model"].append(error_map(x_hat, y, cm.shape[-2:]).flatten().cpu())
         errs["raw"].append(error_map(x, y, cm.shape[-2:]).flatten().cpu())
         labels.append(cm.flatten().to(torch.uint8))
@@ -46,6 +52,8 @@ def collect_errors(loader, enc, tr, device, max_pixels=None, seed=0):
         idx = np.random.default_rng(seed).choice(out["labels"].size, max_pixels, replace=False)
         out = {k: v[idx] for k, v in out.items()}
     out["feat_loss"] = feat_loss / max(n_batches, 1)
+    out["feat_loss_unchanged"] = unch_sum["model"] / max(unch_n, 1)
+    out["feat_loss_unchanged_raw"] = unch_sum["raw"] / max(unch_n, 1)
     return out
 
 
