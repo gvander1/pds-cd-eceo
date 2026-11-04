@@ -70,7 +70,7 @@ HIUCD_FOLDERS = {
 class HiUCD_Dataset(Dataset):
     # cropsize modifié à 224 pour que ce soit un multiple de 14 pour l'encoder DINOv2
     def __init__(self, cropsize=224, type="train", root=HiUCD_ROOT, augment=None,
-                 small=False, size=10, everything=False, get_name=False):
+                                  small=False, size=10, everything=False, get_name=False, preload=False):
         if type not in SPLITS:
             raise ValueError(f"type must be one of {SPLITS}, got {type!r}")
  
@@ -88,6 +88,16 @@ class HiUCD_Dataset(Dataset):
         self.everything = everything
         self.get_name = get_name
         self.augment = (type == "train") if augment is None else augment
+        # preload=True: decode every PNG once and keep it in RAM (decoding the full images at every
+        # sample is slow and leaves the GPU idle). Same crops and results, only faster.
+        self.cache = [self._open(i) for i in range(len(self.im1))] if preload else None
+
+    def _open(self, idx):
+        image1 = Image.open(self.im1[idx]).convert("RGB")  # no-op if already RGB
+        image2 = Image.open(self.im2[idx]).convert("RGB")
+        masks = Image.open(self.lab[idx])
+        masks.load()
+        return image1, image2, masks
  
     def fixed_domain_shift(self, img):
         """Kept for domain-shift experiments (not used by default)."""
@@ -109,9 +119,7 @@ class HiUCD_Dataset(Dataset):
         return len(self.im1)
  
     def __getitem__(self, idx):
-        image1 = Image.open(self.im1[idx]).convert("RGB")  # no-op if already RGB
-        image2 = Image.open(self.im2[idx]).convert("RGB")
-        masks = Image.open(self.lab[idx])
+        image1, image2, masks = self.cache[idx] if self.cache is not None else self._open(idx)
         image1, image2, masks = self.transform(image1, image2, masks)
  
         # *255 recovers the uint8 ids exactly (checked: float32 round-trip is exact for 0..255)
@@ -235,7 +243,7 @@ def build_dataset(cfg, split, augment=None):
         augment = cfg["augment"] if split == "train" else False
     if cfg["dataset"] == "hiucd":
         return HiUCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"],
-                             augment=augment, everything=True)
+                             augment=augment, everything=True, preload=cfg.get("preload", False))
     if cfg["dataset"] == "levir":
         return LEVIRCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"], augment=augment,
                                val_tiles=cfg.get("val_tiles", False))    

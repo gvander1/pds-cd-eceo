@@ -54,7 +54,7 @@ def extract_split(cfg, split, device, save_images=None, label_thr=0.5):
     """Encode every crop of one split and return the patch-level arrays (see module docstring)."""
     save_images = (split != "train") if save_images is None else save_images
     ds = build_dataset(cfg, split, augment=False)
-    loader = DataLoader(ds, batch_size=cfg["batch_size"], shuffle=False, num_workers=cfg["num_workers"])
+    loader = DataLoader(ds, batch_size=16, shuffle=False, num_workers=4)  # fixed: crops depend on these
     enc = build_encoder(cfg, device)
 
     out = {k: [] for k in ("x", "y", "label", "frac", "lc1", "lc2", "im1", "im2", "change")}

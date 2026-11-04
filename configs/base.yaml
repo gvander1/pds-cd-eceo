@@ -11,20 +11,16 @@ n_heads: 6
 n_encoder_layers: 3
 n_decoder_layers: 3
 dropout: 0.1
-residual_output: true     # x_hat = x + zero-initialised correction (starts as "copy T1"); false = old model
-decoder_type: cross       # self = 2nd half is more self-attention layers (old model) | cross = real decoder with cross-attention
-decoder_query: learned    # cross only: decoder tokens start as learned per-position queries (learned) or as the T1 tokens (input)
-train_unchanged_only: none  # none | patch | crop: train the loss only on unchanged patches / fully unchanged crops (val: always all)
-train_unchanged_thr: 0.0    # a patch counts as unchanged if its fraction of changed pixels is <= this
+
 # --- training ---
 epochs: 20
 batch_size: 16
 lr: 3.0e-4                 # max lr of OneCycle
-weight_decay: 1.0e-2
-no_decay_norm_bias: false  # true = no weight decay on biases, LayerNorm γ/β, pos_embed, query_embed
+weight_decay: 1.0e-2       # on the weight matrices only (not biases, LayerNorm, pos/query embeddings)
 pct_start: 0.1
 augment: true              # flips + 90° rotations on train only (same for both datasets)
 num_workers: 4
+preload: false             # Hi-UCD: decode all images once and keep them in RAM (faster, needs RAM)
 seed: 0                    # model init, shuffling, train crops / augmentation
 
 # --- evaluation ---

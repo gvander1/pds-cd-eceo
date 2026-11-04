@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from sklearn.metrics import average_precision_score, precision_recall_curve, roc_auc_score
-
+from torchmetrics.functional.classification import binary_auroc, binary_average_precision
 METHODS = ("model", "raw")
 
 
@@ -20,47 +20,55 @@ def error_map(pred, target, size):
 
 
 @torch.no_grad()
-def collect_errors(loader, enc, tr, device, max_pixels=None, seed=0, unchanged_thr=0.0):
+@torch.no_grad()
+def collect_errors(loader, enc, tr, device, max_pixels=None, seed=0, on_device=False):
     """Run the whole loader once. Returns
-        {"model": float32 array, "raw": float32 array, "labels": uint8 array, "feat_loss": float}
-    feat_loss = mean MSE(transformer(x), y) in feature space (same quantity as the train loss).
+        {"model": float32 array, "raw": float32 array, "labels": uint8 array,
+         "feat_loss_unchanged": float, "feat_loss_unchanged_raw": float}
+    model / raw / labels: per-pixel errors and labels on ALL pixels (needed for AUROC, AP, F1).
+    feat_loss_unchanged(_raw): mean feature MSE of x_hat (resp. x, copy T1) vs y, only over the patches
+    with no changed pixel -> how well the model predicts "normal" T2.
     max_pixels: random subsample of pixels (same positions for both methods) to keep it fast.
     """
     enc.eval()
     tr.eval()
     errs = {m: [] for m in METHODS}
-    labels, feat_loss, n_batches = [], 0.0, 0
+    labels = []
+    unch_sum, unch_n = {m: 0.0 for m in METHODS}, 0.0   # sum of per-patch MSE / number of unchanged patches
     for batch in loader:
         im1, im2, cm = batch[0].to(device), batch[1].to(device), batch[2]
-        unch_sum, unch_n = {"model": 0.0, "raw": 0.0}, 0.0   # sum of per-patch MSE / number of unchanged patches
         x, y = enc(im1), enc(im2)
         x_hat = tr(x)
-        feat_loss += F.mse_loss(x_hat, y).item()
-        n_batches += 1
-        frac = F.adaptive_avg_pool2d(cm.to(device).float().unsqueeze(1), y.shape[-2:])   # (B, 1, h, w)
-        keep = (frac <= unchanged_thr).float()
+        frac = F.adaptive_avg_pool2d(cm.to(device).float().unsqueeze(1), y.shape[-2:])   # (B, 1, h, w) changed fraction
+        keep = (frac == 0).float()                                                       # unchanged patches
         for m, pred in (("model", x_hat), ("raw", x)):
             unch_sum[m] += (((pred - y) ** 2).mean(dim=1, keepdim=True) * keep).sum().item()
+            e = error_map(pred, y, cm.shape[-2:]).flatten()
+            errs[m].append(e if on_device else e.cpu())
         unch_n += keep.sum().item()
-        errs["model"].append(error_map(x_hat, y, cm.shape[-2:]).flatten().cpu())
-        errs["raw"].append(error_map(x, y, cm.shape[-2:]).flatten().cpu())
-        labels.append(cm.flatten().to(torch.uint8))
+        labels.append((cm.to(device) if on_device else cm).flatten().to(torch.uint8))
 
-    out = {m: torch.cat(v).numpy() for m, v in errs.items()}
-    out["labels"] = torch.cat(labels).numpy()
-    if max_pixels is not None and out["labels"].size > max_pixels:
+    if on_device:
+        out = {m: torch.cat(v) for m, v in errs.items()}
+        out["labels"] = torch.cat(labels)
+    else:
+        out = {m: torch.cat(v).numpy() for m, v in errs.items()}
+        out["labels"] = torch.cat(labels).numpy()
+    if not on_device and max_pixels is not None and out["labels"].size > max_pixels:
         idx = np.random.default_rng(seed).choice(out["labels"].size, max_pixels, replace=False)
         out = {k: v[idx] for k, v in out.items()}
-    out["feat_loss"] = feat_loss / max(n_batches, 1)
     out["feat_loss_unchanged"] = unch_sum["model"] / max(unch_n, 1)
     out["feat_loss_unchanged_raw"] = unch_sum["raw"] / max(unch_n, 1)
     return out
-
 
 def separability(scores, labels):
     """Threshold-free metrics."""
     return {"auroc": roc_auc_score(labels, scores), "ap": average_precision_score(labels, scores)}
 
+def separability_torch(scores, labels):
+    """Same as separability (identical values, checked against sklearn) but on torch tensors, on the GPU."""
+    labels = labels.long()
+    return {"auroc": binary_auroc(scores, labels).item(), "ap": binary_average_precision(scores, labels).item()}
 
 def best_f1_threshold(scores, labels):
     precision, recall, thresholds = precision_recall_curve(labels, scores)

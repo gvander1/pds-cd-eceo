@@ -14,31 +14,13 @@ from torch.utils.data import DataLoader
 
 from pds_cd.config import ROOT, load_config
 from pds_cd.datasets import build_dataset
-from pds_cd.metrics import METHODS, collect_errors, separability
 from pds_cd.model import build_models
 from pds_cd.utils import fixed_rng, get_device, seed_everything
+from pds_cd.metrics import METHODS, collect_errors, separability_torch
 
-def masked_mse(pred, target, change, mode="none", thr=0.0):
-    """Training loss. pred, target: (B, C, h, w) features; change: (B, H, W) pixel change map (1 = change).
-    mode "none"  : plain MSE over every patch (old behaviour).
-    mode "patch" : MSE only over patches whose fraction of changed pixels is <= thr (unchanged patches);
-                   changed patches are still in the transformer INPUT (context), just not in the loss.
-    mode "crop"  : MSE only over crops in which every patch is unchanged; crops with any change are ignored.
-    Returns (loss, fraction of patches kept); loss is None if no patch is kept in this batch."""
-    if mode == "none":
-        return F.mse_loss(pred, target), 1.0
-    frac = F.adaptive_avg_pool2d(change.float().unsqueeze(1), pred.shape[-2:])   # (B, 1, h, w) changed fraction
-    keep = (frac <= thr).float()
-    if mode == "crop":
-        keep = keep.amin(dim=(2, 3), keepdim=True).expand_as(keep).contiguous()   # 1 only if the whole crop is unchanged
-    elif mode != "patch":
-        raise ValueError(f"train_unchanged_only must be none, patch or crop, got {mode!r}")
-    n = keep.sum()
-    if n == 0:
-        return None, 0.0
-    sq = ((pred - target) ** 2).mean(dim=1, keepdim=True)                         # (B, 1, h, w) per-patch MSE
-    return (sq * keep).sum() / n, float(keep.mean())
-
+def unchanged_crops(change):
+    """change: (B, H, W) pixel change map (1 = change) -> (B,) bool, True for crops with no changed pixel."""
+    return change.flatten(1).amax(dim=1) == 0
 def main():
     cfg = load_config() #builds the config dict
     run_id = secrets.token_hex(4)  # short unique id, also used in the checkpoint file name
@@ -54,20 +36,18 @@ def main():
     train_loader = DataLoader(train_ds, batch_size=cfg["batch_size"], shuffle=True, drop_last=True,
                               num_workers=cfg["num_workers"],
                               generator=torch.Generator().manual_seed(cfg["seed"])) #so that shuffle order and worker (eugmentation and crops) seeds depend only on seed
-    val_loader = DataLoader(val_ds, batch_size=cfg["batch_size"], shuffle=False,
-                            num_workers=cfg["num_workers"])
+    val_loader = DataLoader(val_ds, batch_size=16, shuffle=False,
+                            num_workers=4)  # fixed: the random val crops depend on batch_size / num_workers
     print(f"train: {len(train_ds)} samples, {len(train_loader)} batches | val: {len(val_ds)} samples")
 
     enc, tr = build_models(cfg, device)                       # unchanged (line 61)
 
-    if cfg["no_decay_norm_bias"]:  # no weight decay on biases, LayerNorm γ/β, pos_embed, query_embed
-        decay, no_decay = [], []
-        for name, p in tr.named_parameters():
-            (no_decay if p.ndim <= 1 or name in ("pos_embed", "query_embed") else decay).append(p)
-        param_groups = [{"params": decay, "weight_decay": cfg["weight_decay"]},
-                        {"params": no_decay, "weight_decay": 0.0}]
-    else:                          # old behaviour: weight decay on every parameter
-        param_groups = [{"params": list(tr.parameters()), "weight_decay": cfg["weight_decay"]}]
+    # weight decay only on the weight matrices (2-D: attention, MLP, out_head);
+    # none on biases, LayerNorm gamma/beta, pos_embed, query_embed
+    decay = [p for p in tr.parameters() if p.ndim == 2]
+    no_decay = [p for p in tr.parameters() if p.ndim != 2]
+    param_groups = [{"params": decay, "weight_decay": cfg["weight_decay"]},
+                    {"params": no_decay, "weight_decay": 0.0}]
     opt = torch.optim.AdamW(param_groups, lr=cfg["lr"])
 
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=cfg["lr"], pct_start=cfg["pct_start"],
@@ -82,11 +62,12 @@ def main():
             change = batch[2].to(device) #pixel change map, used only to mask the loss (val is never masked)
             with torch.no_grad(): #encodes both dates --> each image put into the feature embedding space, no gradient computed for the encoder
                 x, y = enc(im1), enc(im2)
-            loss, kept_frac = masked_mse(tr(x), y, change, cfg["train_unchanged_only"], cfg["train_unchanged_thr"])
-            kept += kept_frac
-            if loss is None: #no unchanged patch in this batch: nothing to learn from, skip it
+            keep = unchanged_crops(change) #only crops with no changed pixel are used for training
+            kept += float(keep.float().mean())
+            if not keep.any(): #no unchanged crop in this batch: nothing to learn from, skip it
                 sched.step()
                 continue
+            loss = F.mse_loss(tr(x[keep]), y[keep])
             opt.zero_grad() #clears the gradients of the previous batch
             loss.backward() #compute the gradients of the loss w.r.t. the transformer parameters
             opt.step() #updates the weights 
@@ -95,21 +76,20 @@ def main():
             n_used += 1
 
         with fixed_rng(cfg["eval_seed"]):  # same val crops every epoch, training RNG untouched
-            val = collect_errors(val_loader, enc, tr, device,
-                                 max_pixels=cfg["epoch_eval_pixels"], seed=cfg["eval_seed"],
-                                 unchanged_thr=cfg["train_unchanged_thr"])
+            val = collect_errors(val_loader, enc, tr, device, on_device=True)   # all val pixels, metrics on GPU
         #collect_errors runs the whole val set and retiurns val["model"]: per-pixel error ‖x̂ − y‖² (with transformer), val["raw"]: per-pixel error ‖x − y‖² (without transformer), val["labels"]: ground truth labels, val["feat_loss"]: mean of val["model"] over all pixels
         log = {"epoch": ep, "train/loss": tot / max(n_used, 1),
-               "train/kept_patch_frac": kept / len(train_loader),
-               "lr": sched.get_last_lr()[0], "val/feat_loss": val["feat_loss"],
+               "train/kept_crop_frac": kept / len(train_loader),
+               "lr": sched.get_last_lr()[0],
                "val/feat_loss_unchanged": val["feat_loss_unchanged"],           # x_hat vs y, unchanged patches only
-               "val/feat_loss_unchanged_raw": val["feat_loss_unchanged_raw"]}
+               "val/feat_loss_unchanged_raw": val["feat_loss_unchanged_raw"]}   # x vs y (copy T1), same patches
         #log builds the dictionary of metrics to log to WandB, including the average training loss, the current learning rate, and the validation feature loss
         for m in METHODS:
-            for k, v in separability(val[m], val["labels"]).items():
+            for k, v in separability_torch(val[m], val["labels"]).items():
                 log[f"val/{k}_{m}"] = v
         wandb.log(log)
-        print(f"epoch {ep:3d} | train {log['train/loss']:.4f} | val {log['val/feat_loss']:.4f} | "
+        print(f"epoch {ep:3d} | train {log['train/loss']:.4f} | val unchanged {log['val/feat_loss_unchanged']:.4f} "
+              f"(raw {log['val/feat_loss_unchanged_raw']:.4f}) | "
               f"AUROC model {log['val/auroc_model']:.3f} raw {log['val/auroc_raw']:.3f}")
 
     ckpt_dir = ROOT / "checkpoints"

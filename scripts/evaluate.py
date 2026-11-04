@@ -44,7 +44,7 @@ def main():
     #loader: given a split name (train, val, test) and optionally an augmentation flag, it creates a dataset (access one sample with ds[6]) and a dataloader and returns both
     def loader(split, augment=None): 
         ds = build_dataset(cfg, split, augment=augment)
-        return ds, DataLoader(ds, batch_size=cfg["batch_size"], shuffle=False, num_workers=cfg["num_workers"])
+        return ds, DataLoader(ds, batch_size=16, shuffle=False, num_workers=4)  # fixed: crops depend on these
 
     _, train_loader = loader("train", augment=False)  # threshold chosen on non-augmented train
     eval_ds, eval_loader = loader(args.split)
@@ -66,7 +66,8 @@ def main():
             summary[f"{args.split}/{k}_{m}"] = v
         for k, v in separability(ev_err[m], ev_err["labels"]).items():
             summary[f"{args.split}/{k}_{m}"] = v
-    summary[f"{args.split}/feat_loss"] = ev_err["feat_loss"]
+    summary[f"{args.split}/feat_loss_unchanged"] = ev_err["feat_loss_unchanged"]          # model, unchanged patches
+    summary[f"{args.split}/feat_loss_unchanged_raw"] = ev_err["feat_loss_unchanged_raw"]  # copy T1, same patches
     run.summary.update(summary)
 
     for k, v in sorted(summary.items()):
