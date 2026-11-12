@@ -18,6 +18,8 @@ batch_size: 16
 lr: 3.0e-4                 # max lr of OneCycle
 weight_decay: 1.0e-2       # on the weight matrices only (not biases, LayerNorm, pos/query embeddings)
 pct_start: 0.1
+div_factor: 25             # OneCycle: starting lr = lr / div_factor
+beta2: 0.999               # AdamW: lower (0.98) = adapts faster
 augment: true              # flips + 90° rotations on train only (same for both datasets)
 num_workers: 4
 preload: false             # Hi-UCD: decode all images once and keep them in RAM (faster, needs RAM)

@@ -162,7 +162,7 @@ class LEVIRCD_Dataset(Dataset):
     EXCLUDE = {"train_76.png"}  # label unreadable on the workstation disk
  
     def __init__(self, cropsize=256, type="train", root=LEVIR_ROOT, augment=None,
-                 small=False, size=10, get_name=False, val_tiles=False):
+                                  small=False, size=10, get_name=False, val_tiles=False, preload=False):
         if type not in SPLITS:
             raise ValueError(f"type must be one of {SPLITS}, got {type!r}")
  
@@ -187,9 +187,12 @@ class LEVIRCD_Dataset(Dataset):
             raise ValueError(f"cropsize={cropsize} larger than image size {self.img_w}x{self.img_h}")
  
         self.tiles_y = self.img_h // cropsize  # pixels beyond the last full tile are dropped
+        self.tiles_x = self.img_w // cropsize
         # one random crop per image (train, and val unless val_tiles) or a fixed grid of tiles (test)
         self.random_crop = type == "train" or (type == "val" and not val_tiles)
         self.tiles_per_image = 1 if self.random_crop else self.tiles_y * self.tiles_x
+        # preload=True: decode every PNG once and keep it in RAM (same samples, only faster)
+        self.cache = {n: self._load(n) for n in self.names} if preload else None
  
     def __len__(self):
         return len(self.names) * self.tiles_per_image
@@ -224,8 +227,8 @@ class LEVIRCD_Dataset(Dataset):
             img_idx, tile = divmod(idx, self.tiles_per_image)
  
         name = self.names[img_idx]
-        image1, image2, changemap = self.transform(*self._load(name), tile)
- 
+        images = self.cache[name] if self.cache is not None else self._load(name)
+        image1, image2, changemap = self.transform(*images, tile)
         if self.get_name:
             return image1, image2, changemap, (name if tile is None else f"{name}#tile{tile}")
         return image1, image2, changemap
@@ -246,5 +249,5 @@ def build_dataset(cfg, split, augment=None):
                              augment=augment, everything=True, preload=cfg.get("preload", False))
     if cfg["dataset"] == "levir":
         return LEVIRCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"], augment=augment,
-                               val_tiles=cfg.get("val_tiles", False))    
+                               val_tiles=cfg.get("val_tiles", False), preload=cfg.get("preload", False))   
         raise ValueError(f"Unknown dataset {cfg['dataset']!r}")

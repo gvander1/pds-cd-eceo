@@ -48,11 +48,11 @@ def main():
     no_decay = [p for p in tr.parameters() if p.ndim != 2]
     param_groups = [{"params": decay, "weight_decay": cfg["weight_decay"]},
                     {"params": no_decay, "weight_decay": 0.0}]
-    opt = torch.optim.AdamW(param_groups, lr=cfg["lr"])
+    opt = torch.optim.AdamW(param_groups, lr=cfg["lr"], betas=(0.9, cfg["beta2"]))
 
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=cfg["lr"], pct_start=cfg["pct_start"],
-                                                total_steps=cfg["epochs"] * len(train_loader)) #learning rate schedule, learning rate raises up to 10% of the 
-
+                                                div_factor=cfg["div_factor"],
+                                                total_steps=cfg["epochs"] * len(train_loader))
     for ep in range(cfg["epochs"]):
         tr.train() #turns on trainnf mode : dropout active
         enc.eval() #keeps the encoder in inference mode because the evaluation at the end of each epoch also calls .eval(), and the next epoch must switch the transformer back to .train()
