@@ -204,6 +204,48 @@ class SamViTBEncoder(nn.Module):
         f = torch.cat(feats)                                                          # (B, 256, 64, 64)
         assert f.shape[-1] == self.sam_grid, f"SAM grid {tuple(f.shape[-2:])}, expected {self.sam_grid}"
         return F.adaptive_avg_pool2d(f, self.grid_size)                          # (B, 256, 16, 16)
+        
+class SmartiesEncoder(nn.Module):
+    """Frozen SMARTIES ViT (Sumbul et al., ICCV 2025, github.com/gsumbul/SMARTIES), remote-sensing foundation model
+    with spectrum-aware patch projections, via transformers (trust_remote_code). Used on RGB with sensor_type="RGB"
+    (bands red_1, green_1, blue_3: the very-high-resolution RGB sensor it was pretrained on).
+    Preprocessing as in pretraining: per-band 1-99 % percentile min-max (on 0-255 values), clamp to [0, 1], then
+    mean / std (values from SMARTIES config/pretraining_sensors.yaml, RGB entry).
+    Its positional embedding is fixed for the pretraining size (224 -> 14x14 patches), so the crop is resized to
+    input_size first: a 256 crop gives a 14x14 grid (one cell ~18 px of the crop instead of 16 for the ViT/16 encoders)."""
+    MODELS = {"smarties_vitb": "gsumbul/SMARTIES-v1-ViT-B", "smarties_vitl": "gsumbul/SMARTIES-v1-ViT-L"}
+    P1 = (2.25423519463343, 0.8408760022210329, 0.2604600195558861)       # 1 % percentile, 0-255 scale
+    P99 = (254.8254785655767, 254.8135793768661, 254.85720973547197)    # 99 % percentile
+    MEAN = (0.39974889159202576, 0.40887942910194397, 0.3851129412651062)
+    STD = (0.2723924219608307, 0.26291385293006897, 0.2712573707103729)
+
+    def __init__(self, name="smarties_vitb", input_size=224):
+        super().__init__()
+        from transformers import AutoModel
+        self.model = AutoModel.from_pretrained(self.MODELS[name], trust_remote_code=True)
+        self.patch_size = 16
+        self.input_size = input_size
+        self.grid_size = input_size // self.patch_size              # 14 at 224
+        n_pos = self.model.pos_embed.shape[1] - 1                   # patch positions the model was built for
+        if self.grid_size ** 2 != n_pos:
+            raise ValueError(f"SMARTIES expects {int(n_pos ** 0.5) * self.patch_size} px inputs ({n_pos} patches), "
+                             f"got resize_to={input_size}: set --resize_to accordingly")
+        self.out_channels = self.model.pos_embed.shape[-1]          # 768 for ViT-B, 1024 for ViT-L
+        for k, v in (("p1", self.P1), ("p99", self.P99), ("mean", self.MEAN), ("std", self.STD)):
+            self.register_buffer(k, torch.tensor(v).view(1, 3, 1, 1))
+        for p in self.model.parameters():
+            p.requires_grad = False
+        self.eval()
+
+    def forward(self, x):
+        B = x.shape[0]
+        x = F.interpolate(x, size=(self.input_size, self.input_size), mode="bilinear", align_corners=False)
+        x = ((x * 255 - self.p1) / (self.p99 - self.p1)).clamp(0, 1)   # percentile min-max, as in pretraining
+        x = (x - self.mean) / self.std
+        tokens = self.model(x, sensor_type="RGB", all_tokens=True)[:, 1:]   # (B, 1 + n*n, C) -> drop CLS
+        n = self.grid_size
+        assert tokens.shape[1] == n * n, f"{tokens.shape[1]} patch tokens, expected {n * n}"
+        return tokens.permute(0, 2, 1).reshape(B, self.out_channels, n, n)
 
 def split_tiles(t, k):
     """(B, ..., H, W) -> (B*k*k, ..., H/k, W/k): cuts the last two axes into k x k tiles, each becoming its own
@@ -251,6 +293,8 @@ def build_encoder(cfg, device=None):
         enc = SamViTBEncoder(grid_size=cfg["crop"] // 16)   # one cell per 16 px, like the ViT/16 encoders
     elif name == "resnet50_l3":
         enc = ResNet50Encoder(freeze=True, input_size=cfg["crop"])
+    elif name in SmartiesEncoder.MODELS:
+        enc = SmartiesEncoder(name, input_size=cfg["resize_to"])   # 224: SMARTIES pretraining size
     else:
         raise ValueError(f"Unknown encoder {name!r} (add it to build_encoder in src/pds_cd/model.py)")
     k = cfg.get("tiles", 1)
