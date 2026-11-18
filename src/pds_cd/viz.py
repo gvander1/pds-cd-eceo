@@ -5,9 +5,8 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
 from .metrics import error_map
-
+from .model import split_tiles
 
 @torch.no_grad()
 def predict_samples(enc, tr, dataset, device, indices):
@@ -19,6 +18,8 @@ def predict_samples(enc, tr, dataset, device, indices):
     im2 = torch.stack([s[1] for s in samples]).to(device)
     labels = torch.stack([s[2] for s in samples])
     x, y = enc(im1), enc(im2)
+    k = getattr(enc, "tiles", 1)                       # full-image encoders: show each tile as its own row
+    im1, im2, labels = split_tiles(im1, k), split_tiles(im2, k), split_tiles(labels, k)
     err_model = error_map(tr(x), y, labels.shape[-2:]).cpu()
     err_raw = error_map(x, y, labels.shape[-2:]).cpu()
     return im1.cpu(), im2.cpu(), labels, err_model, err_raw
@@ -48,7 +49,7 @@ def visualize_predictions(im1, im2, labels, err, threshold=None, vmin=None, vmax
             axs[r, c].axis("off")
             if r == 0:
                 axs[r, c].set_title(titles[c])
-        if indices is not None:
+        if indices is not None and r < len(indices):   # tiled encoders: more rows than sample indices
             axs[r, 0].text(-0.1, 0.5, f"#{indices[r]}", transform=axs[r, 0].transAxes, ha="right", va="center")
     fig.colorbar(err_im, ax=axs[:, 3], shrink=0.6, label="MSE per patch")
     if title:
@@ -72,4 +73,30 @@ def error_histograms(errors, threshold=None, title=""):
         ax.set_xlabel("error (MSE per patch, upsampled)")
         ax.set_title(f"{title} - {m}")
         ax.legend()
+    return fig
+
+def pr_roc_figure(curves, ops=None, title=""):
+    """curves: {method: metrics.pr_roc_curves(...)}. ops: {method: scores_at_threshold(...)} at the
+    transferred threshold (operating point actually used), drawn as a dot on each curve.
+    Left: PR curve (dotted line = prevalence = AP of a random score). Right: ROC curve."""
+    fig, (ax_pr, ax_roc) = plt.subplots(1, 2, figsize=(12, 5), constrained_layout=True)
+    for m, c in curves.items():
+        line, = ax_pr.plot(c["recall"], c["precision"], label=f"{m}  AUPRC = {c['auprc']:.3f}")
+        col = line.get_color()
+        o = c["oracle"]
+        ax_pr.plot(o["recall"], o["precision"], "x", color=col, ms=9,
+                   label=f"{m} best F1 on this split = {o['f1']:.3f} (oracle)")
+        if ops is not None and m in ops:
+            op = ops[m]
+            ax_pr.plot(op["recall"], op["precision"], "o", color=col, ms=7,
+                       label=f"{m} transferred thr: F1 = {op['f1']:.3f}")
+        ax_roc.plot(c["fpr"], c["tpr"], color=col, label=f"{m}  AUROC = {c['auroc']:.3f}")
+    prev = next(iter(curves.values()))["prevalence"]
+    ax_pr.axhline(prev, color="gray", ls=":", label=f"random (prevalence = {prev:.3f})")
+    ax_roc.plot([0, 1], [0, 1], color="gray", ls=":", label="random")
+    ax_pr.set(xlabel="recall", ylabel="precision", xlim=(0, 1), ylim=(0, 1.02), title=f"{title} - PR")
+    ax_roc.set(xlabel="false positive rate", ylabel="true positive rate", xlim=(0, 1), ylim=(0, 1.02),
+               title=f"{title} - ROC")
+    ax_pr.legend(fontsize=8, loc="upper right")
+    ax_roc.legend(fontsize=8, loc="lower right")
     return fig

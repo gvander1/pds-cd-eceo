@@ -145,6 +145,8 @@ class DinoV3LEncoder(nn.Module):
                               (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),   # ImageNet stats
         "dinov3_vitl16_sat": ("facebook/dinov3-vitl16-pretrain-sat493m",
                               (0.430, 0.411, 0.296), (0.213, 0.156, 0.143)),   # satellite stats (DINOv3 README)
+        "dinov3_vitb16":     ("facebook/dinov3-vitb16-pretrain-lvd1689m",
+                              (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),   # ImageNet stats, 768 channels
     }
 
     def __init__(self, name, input_size=256):
@@ -178,7 +180,7 @@ class SamViTBEncoder(nn.Module):
     Output = SAM 'image embeddings' (after the neck): (B, 256, 64, 64), average-pooled 4x4 -> (B, 256, 16, 16),
     so each cell covers the same ground area as a patch of the other encoders."""
 
-    def __init__(self, chunk=4):
+    def __init__(self, chunk=4, grid_size=16):
         super().__init__()
         from transformers import SamModel
         sam = SamModel.from_pretrained("facebook/sam-vit-base")
@@ -186,7 +188,7 @@ class SamViTBEncoder(nn.Module):
         del sam
         self.sam_size = self.encoder.config.image_size                                # 1024
         self.sam_grid = self.sam_size // self.encoder.config.patch_size               # 64
-        self.grid_size = 16
+        self.grid_size = grid_size               # 16 for a 256 crop (4x4 pooling), 64 for a full 1024 image (no pooling)
         self.out_channels = self.encoder.config.output_channels                       # 256
         self.chunk = chunk                       # images per forward pass, limits GPU memory at 1024x1024
         self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
@@ -203,6 +205,36 @@ class SamViTBEncoder(nn.Module):
         assert f.shape[-1] == self.sam_grid, f"SAM grid {tuple(f.shape[-2:])}, expected {self.sam_grid}"
         return F.adaptive_avg_pool2d(f, self.grid_size)                          # (B, 256, 16, 16)
 
+def split_tiles(t, k):
+    """(B, ..., H, W) -> (B*k*k, ..., H/k, W/k): cuts the last two axes into k x k tiles, each becoming its own
+    sample. Row-major tile order, the k*k tiles of one image consecutive. Works for feature grids, labels and
+    images, so everything stays aligned. k = 1 -> unchanged."""
+    if k == 1:
+        return t
+    B, *mid, H, W = t.shape
+    h, w = H // k, W // k
+    t = t.reshape(B, *mid, k, h, k, w)
+    n = len(mid)
+    perm = [0, n + 1, n + 3] + list(range(1, n + 1)) + [n + 2, n + 4]
+    return t.permute(*perm).reshape(B * k * k, *mid, h, w)
+
+
+class TiledEncoder(nn.Module):
+    """Runs `base` on the FULL image and cuts its feature grid into k x k tiles, returned as separate samples:
+    (B, 3, 1024, 1024) -> (B*k*k, C, g/k, g/k). The transformer, the training mask (unchanged crops) and the
+    metrics then work per tile exactly as with k x k crops of the image, but the encoder has seen the whole image
+    at native resolution. Labels and images must be cut with split_tiles(t, k) at the same places."""
+
+    def __init__(self, base, k):
+        super().__init__()
+        self.base, self.tiles = base, k
+        self.out_channels = base.out_channels
+        if base.grid_size % k:
+            raise ValueError(f"grid {base.grid_size} not divisible by tiles={k}")
+        self.grid_size = base.grid_size // k
+
+    def forward(self, x):
+        return split_tiles(self.base(x), self.tiles)
     
 def build_encoder(cfg, device=None):
     """Single place where an encoder name from the config becomes a model.
@@ -213,14 +245,17 @@ def build_encoder(cfg, device=None):
         enc = DinoV2Encoder(model_name=name, freeze=True, resize_to=cfg["resize_to"])
     elif name == "dinov3_vits16":
         enc = DinoV3SEncoder(input_size=cfg["crop"])
-    elif name in ("dinov3_vitl16", "dinov3_vitl16_sat"):
+    elif name in ("dinov3_vitb16", "dinov3_vitl16", "dinov3_vitl16_sat"):
         enc = DinoV3LEncoder(name, input_size=cfg["crop"])
     elif name == "sam_vitb":
-        enc = SamViTBEncoder()
+        enc = SamViTBEncoder(grid_size=cfg["crop"] // 16)   # one cell per 16 px, like the ViT/16 encoders
     elif name == "resnet50_l3":
         enc = ResNet50Encoder(freeze=True, input_size=cfg["crop"])
     else:
         raise ValueError(f"Unknown encoder {name!r} (add it to build_encoder in src/pds_cd/model.py)")
+    k = cfg.get("tiles", 1)
+    if k > 1:                      # full-image input, per-tile processing downstream (see TiledEncoder)
+        enc = TiledEncoder(enc, k)
     enc = enc.eval()
     return enc.to(device) if device is not None else enc
 

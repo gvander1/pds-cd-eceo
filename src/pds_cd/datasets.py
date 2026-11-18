@@ -4,7 +4,7 @@ HiUCD_Dataset
   everything=True  -> (im1, im2, changemap, landcover1, landcover2)
   everything=False -> (im1, landcover1)                                (default)
 LEVIRCD_Dataset    -> (im1, im2, changemap)
-get_name=True appends the file name (+ "#tileK" for LEVIR val/test) at the end.
+get_name=True appends the file name (+ "#tileK" for tiled val/test samples) at the end.
  
 Augmentation (same default for both): augment=None -> on for 'train', off for 'val'/'test'.
 Random flips H/V + rotation 0/90/180/270, applied identically to every image and label map.
@@ -70,7 +70,8 @@ HIUCD_FOLDERS = {
 class HiUCD_Dataset(Dataset):
     # cropsize modifié à 224 pour que ce soit un multiple de 14 pour l'encoder DINOv2
     def __init__(self, cropsize=224, type="train", root=HiUCD_ROOT, augment=None,
-                                  small=False, size=10, everything=False, get_name=False, preload=False):
+                                  small=False, size=10, everything=False, get_name=False, preload=False,
+                                  eval_tiles=False):
         if type not in SPLITS:
             raise ValueError(f"type must be one of {SPLITS}, got {type!r}")
  
@@ -88,6 +89,15 @@ class HiUCD_Dataset(Dataset):
         self.everything = everything
         self.get_name = get_name
         self.augment = (type == "train") if augment is None else augment
+        # eval_tiles=True: val / test = fixed grid of non-overlapping tiles covering the whole image (every pixel
+        # scored, like LEVIR test). Train always keeps one random crop per image.
+        with Image.open(self.im1[0]) as im:      # all images assumed the same size
+            self.img_w, self.img_h = im.size
+        if cropsize > min(self.img_w, self.img_h):
+            raise ValueError(f"cropsize={cropsize} larger than image size {self.img_w}x{self.img_h}")
+        self.tiles_y, self.tiles_x = self.img_h // cropsize, self.img_w // cropsize  # pixels past the last tile dropped
+        self.random_crop = type == "train" or not eval_tiles
+        self.tiles_per_image = 1 if self.random_crop else self.tiles_y * self.tiles_x
         # preload=True: decode every PNG once and keep it in RAM (decoding the full images at every
         # sample is slow and leaves the GPU idle). Same crops and results, only faster.
         self.cache = [self._open(i) for i in range(len(self.im1))] if preload else None
@@ -107,20 +117,24 @@ class HiUCD_Dataset(Dataset):
         img = TF.adjust_hue(img, -0.05)       # slight hue shift
         return img
  
-    def transform(self, im1, im2, lab):
-        # Random crop (all splits; seed the torch RNG before iterating for reproducible val)
-        i, j, h, w = v2.RandomCrop.get_params(im1, output_size=(self.cropsize, self.cropsize))
+    def transform(self, im1, im2, lab, tile=None):
+        if tile is None:   # random crop (train, and val / test unless eval_tiles); seed the torch RNG for reproducible val
+            i, j, h, w = v2.RandomCrop.get_params(im1, output_size=(self.cropsize, self.cropsize))
+        else:              # deterministic tile, row-major
+            r, c = divmod(tile, self.tiles_x)
+            i, j, h, w = r * self.cropsize, c * self.cropsize, self.cropsize, self.cropsize
         im1 = TF.to_tensor(TF.crop(im1, i, j, h, w))
         im2 = TF.to_tensor(TF.crop(im2, i, j, h, w))
         lab = TF.to_tensor(TF.crop(lab, i, j, h, w))  # mask NOT converted: keeps class ids
         return im1, im2, lab
  
     def __len__(self):
-        return len(self.im1)
+        return len(self.im1) * self.tiles_per_image
  
     def __getitem__(self, idx):
+        idx, tile = (idx, None) if self.random_crop else divmod(idx, self.tiles_per_image)
         image1, image2, masks = self.cache[idx] if self.cache is not None else self._open(idx)
-        image1, image2, masks = self.transform(image1, image2, masks)
+        image1, image2, masks = self.transform(image1, image2, masks, tile)
  
         # *255 recovers the uint8 ids exactly (checked: float32 round-trip is exact for 0..255)
         landcover1 = (masks[0] * 255).long()
@@ -136,7 +150,8 @@ class HiUCD_Dataset(Dataset):
         else:
             out = (image1, landcover1)
         if self.get_name:
-            out = out + (os.path.basename(self.im1[idx]),)
+            name = os.path.basename(self.im1[idx])
+            out = out + (name if tile is None else f"{name}#tile{tile}",)
         return out
  
  
@@ -246,8 +261,9 @@ def build_dataset(cfg, split, augment=None):
         augment = cfg["augment"] if split == "train" else False
     if cfg["dataset"] == "hiucd":
         return HiUCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"],
-                             augment=augment, everything=True, preload=cfg.get("preload", False))
+                             augment=augment, everything=True, preload=cfg.get("preload", False),
+                             eval_tiles=cfg.get("eval_tiles", False))
     if cfg["dataset"] == "levir":
         return LEVIRCD_Dataset(cropsize=cfg["crop"], type=split, root=cfg["root"], augment=augment,
                                val_tiles=cfg.get("val_tiles", False), preload=cfg.get("preload", False))   
-        raise ValueError(f"Unknown dataset {cfg['dataset']!r}")
+    raise ValueError(f"Unknown dataset {cfg['dataset']!r}")

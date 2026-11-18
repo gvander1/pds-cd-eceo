@@ -1,3 +1,4 @@
 dataset: hiucd
-root: /data/gaetane        # folder that CONTAINS HiUCD_mini/
-crop: 256                  # random crop on every split (val reproducible through eval_seed)
+root: /home/gaetane/data      # folder that CONTAINS HiUCD_mini/
+crop: 256                  # random crop on train; on val / test too unless eval_tiles (val reproducible through eval_seed)
+eval_tiles: true           # val / test = fixed grid of crop x crop tiles covering the whole image (every pixel scored)

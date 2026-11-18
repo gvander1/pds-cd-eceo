@@ -1,12 +1,13 @@
 """Evaluate a saved checkpoint. Never trains.
 
     python scripts/evaluate.py --ckpt checkpoints/<run-name>.pt
-    python scripts/evaluate.py --ckpt checkpoints/<run-name>.pt --split test
+    python scripts/evaluate.py --ckpt checkpoints/<run-name>.pt --split test --thr-split val
 
-Protocol (same as the notebook): for each signal (model / raw), the threshold maximising F1
-on the TRAIN set (without augmentation) is applied to the evaluated split.
-Logs to W&B: thresholds, F1 / precision / recall / AUROC / AP, predicted vs true positive
-fractions, error histograms and example predictions.
+Protocol: for each signal (model / raw), the threshold maximising F1 on --thr-split
+(default: TRAIN without augmentation, as in the notebook) is applied to the evaluated split.
+--thr-split must differ from --split (otherwise the F1 is optimistic).
+Logs to W&B: thresholds, F1 / precision / recall / AUROC / AP (= AUPRC), predicted vs true
+positive fractions, error histograms, PR / ROC curves and example predictions.
 """
 import argparse
 
@@ -16,29 +17,41 @@ from torch.utils.data import DataLoader
 
 from pds_cd.config import ROOT
 from pds_cd.datasets import build_dataset
-from pds_cd.metrics import METHODS, best_f1_threshold, collect_errors, scores_at_threshold, separability
+from pds_cd.metrics import (METHODS, best_f1_threshold, collect_errors, pr_roc_curves, scores_at_threshold,
+                            separability)
 from pds_cd.model import build_models
 from pds_cd.utils import fixed_rng, get_device
-from pds_cd.viz import error_histograms, pick_indices, predict_samples, visualize_predictions
+from pds_cd.viz import error_histograms, pick_indices, pr_roc_figure, predict_samples, visualize_predictions
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--ckpt", required=True)
     p.add_argument("--split", default="val", choices=["val", "test"])
+    p.add_argument("--thr-split", default="train", choices=["train", "val"],
+                   help="split on which the F1-optimal threshold is chosen")
+    p.add_argument("--eval-tiles", "--val-tiles", dest="eval_tiles", action="store_true",
+                   help="val (LEVIR) / val and test (Hi-UCD) = full grid of tiles, every pixel scored")
     args = p.parse_args()
+    if args.thr_split == args.split:
+        raise ValueError("--thr-split must differ from --split (threshold chosen on the evaluated split)")
+    ts = args.thr_split
 
     device = get_device()
     ckpt = torch.load(args.ckpt, map_location=device) 
     cfg = ckpt["cfg"]  # exactly the config used for training
+    if args.eval_tiles:          # overrides the training config; recorded in the W&B config of this eval run
+        cfg["val_tiles"] = True    # LEVIR: val tiled (test always is)
+        cfg["eval_tiles"] = True   # Hi-UCD: val and test tiled
     enc, tr = build_models(cfg, device) #rebuilds the encoder and transformer models with the same architecture as used in training
     tr.load_state_dict(ckpt["transformer"]) #replaces the transformer's random initial weights with the trained weights
 
     run = wandb.init(project=cfg["project"], job_type="eval", dir=ROOT,
                      group=f"{cfg['dataset']}-{cfg['encoder']}", #same group as the training so they sit together in wandb
-                     name=f"eval-{args.split}-{ckpt['train_run_name']}",
+                     name=f"eval-{args.split}-thr{ts}{'-evaltiles' if args.eval_tiles else ''}-{ckpt['train_run_name']}",
                      tags=[cfg["dataset"], cfg["encoder"], args.split],
-                     config={**cfg, "eval_split": args.split, "train_run_id": ckpt["train_run_id"]})
+                     config={**cfg, "eval_split": args.split, "thr_split": ts,
+                             "train_run_id": ckpt["train_run_id"]})
 
     #this part builds the two data source needed for the evaluation: the trainset to choose the threshold and the val to measure performance
     #loader: given a split name (train, val, test) and optionally an augmentation flag, it creates a dataset (access one sample with ds[6]) and a dataloader and returns both
@@ -46,26 +59,30 @@ def main():
         ds = build_dataset(cfg, split, augment=augment)
         return ds, DataLoader(ds, batch_size=16, shuffle=False, num_workers=4)  # fixed: crops depend on these
 
-    _, train_loader = loader("train", augment=False)  # threshold chosen on non-augmented train
+    _, thr_loader = loader(ts, augment=False)  # threshold split, never augmented
     eval_ds, eval_loader = loader(args.split)
 
     with fixed_rng(cfg["eval_seed"]):
-        tr_err = collect_errors(train_loader, enc, tr, device) 
+        tr_err = collect_errors(thr_loader, enc, tr, device)  # errors on the threshold split
     with fixed_rng(cfg["eval_seed"]):
         ev_err = collect_errors(eval_loader, enc, tr, device)
 
-    summary, thresholds = {}, {}
+    summary, thresholds, ops, curves = {}, {}, {}, {}
     for m in METHODS:
         thr, f1_train = best_f1_threshold(tr_err[m], tr_err["labels"])
         thresholds[m] = thr
-        summary[f"train/threshold_{m}"] = thr
-        summary[f"train/f1_{m}"] = f1_train
+        summary[f"{ts}/threshold_{m}"] = thr
+        summary[f"{ts}/f1_{m}"] = f1_train
         for k, v in separability(tr_err[m], tr_err["labels"]).items():
-            summary[f"train/{k}_{m}"] = v
-        for k, v in scores_at_threshold(ev_err[m], ev_err["labels"], thr).items():
+            summary[f"{ts}/{k}_{m}"] = v
+        ops[m] = scores_at_threshold(ev_err[m], ev_err["labels"], thr)
+        for k, v in ops[m].items():
             summary[f"{args.split}/{k}_{m}"] = v
-        for k, v in separability(ev_err[m], ev_err["labels"]).items():
-            summary[f"{args.split}/{k}_{m}"] = v
+        curves[m] = pr_roc_curves(ev_err[m], ev_err["labels"])  # AUPRC (= AP), AUROC + curves
+        summary[f"{args.split}/ap_{m}"] = curves[m]["auprc"]
+        summary[f"{args.split}/auroc_{m}"] = curves[m]["auroc"]
+        summary[f"{args.split}/oracle_f1_{m}"] = curves[m]["oracle"]["f1"]  # best F1 if thr chosen on this split
+        summary[f"{args.split}/oracle_threshold_{m}"] = curves[m]["oracle"]["threshold"]
     summary[f"{args.split}/feat_loss_unchanged"] = ev_err["feat_loss_unchanged"]          # model, unchanged patches
     summary[f"{args.split}/feat_loss_unchanged_raw"] = ev_err["feat_loss_unchanged_raw"]  # copy T1, same patches
     run.summary.update(summary)
@@ -75,8 +92,13 @@ def main():
 
     # --- figures ---  (every title says which dataset / encoder / seed it comes from)
     tag = f"{cfg['dataset']} | {cfg['encoder']} | seed {cfg['seed']}"
-    figs = {"hist/train": error_histograms(tr_err, thresholds, f"{tag} | train"),
-            f"hist/{args.split}": error_histograms(ev_err, thresholds, f"{tag} | {args.split}")}
+    figs = {f"hist/{ts}": error_histograms(tr_err, thresholds, f"{tag} | {ts}"),
+            f"hist/{args.split}": error_histograms(ev_err, thresholds, f"{tag} | {args.split}"),
+            f"curves/{args.split}": pr_roc_figure(curves, ops, f"{tag} | {args.split} (thr from {ts})")}
+    out_dir = ROOT / "figures" / (run.name or run.id)  # run.name is None in offline mode
+    out_dir.mkdir(parents=True, exist_ok=True)
+    figs[f"curves/{args.split}"].savefig(out_dir / f"pr_roc_{args.split}.png", dpi=150)
+    print(f"PR / ROC curves saved to {out_dir}")
 
     with fixed_rng(cfg["eval_seed"]):
         idx = pick_indices(eval_ds, cfg["n_vis"], seed=cfg["eval_seed"])

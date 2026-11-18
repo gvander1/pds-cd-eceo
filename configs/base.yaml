@@ -3,30 +3,31 @@
 project: pds-cd            # W&B project name
 
 # --- encoder (frozen) ---
-encoder: dinov2_vits14     # dinov2_vits14 | dinov2_vitb14 | dinov2_vitl14
+encoder: dinov3_vits16     # dinov3_vits16 | dinov3_vitb16 | dinov3_vitl16 | dinov3_vitl16_sat | sam_vitb | resnet50_l3 | dinov2_*
 resize_to: 224             # crop is resized to this before DINOv2 (multiple of 14 -> 16x16 patches)
 
 # --- FeatureTransformer ---
 n_heads: 6
 n_encoder_layers: 3
 n_decoder_layers: 3
-dropout: 0.1
+dropout: 0
 
 # --- training ---
-epochs: 20
+epochs: 100
 batch_size: 16
 lr: 3.0e-4                 # max lr of OneCycle
 weight_decay: 1.0e-2       # on the weight matrices only (not biases, LayerNorm, pos/query embeddings)
 pct_start: 0.1
 div_factor: 25             # OneCycle: starting lr = lr / div_factor
 beta2: 0.999               # AdamW: lower (0.98) = adapts faster
-augment: true              # flips + 90° rotations on train only (same for both datasets)
+augment: false             # flips + 90° rotations on train only (same for both datasets)
 num_workers: 4
-preload: false             # Hi-UCD: decode all images once and keep them in RAM (faster, needs RAM)
+preload: true              # Hi-UCD: decode all images once and keep them in RAM (faster, needs RAM)
 seed: 0                    # model init, shuffling, train crops / augmentation
+tiles: 1                   # >1: encoder sees the full image, features cut into tiles x tiles (use with crop 1024)
 
 # --- evaluation ---
 eval_seed: 42              # fixes the random val crops of Hi-UCD (LEVIR val is tiled, unaffected)
 epoch_eval_pixels: 1000000 # pixels subsampled for the per-epoch AUROC/AP (final eval uses all)
 n_vis: 8                   # number of examples logged as images by evaluate.py
-log_model: true            # also upload the checkpoint to W&B as an artifact
+log_model: false           # also upload the checkpoint to W&B as an artifact

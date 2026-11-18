@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from pds_cd.config import ROOT, load_config
 from pds_cd.datasets import build_dataset
 from pds_cd.model import build_models
+from pds_cd.model import build_models, split_tiles
 from pds_cd.utils import fixed_rng, get_device, seed_everything
 from pds_cd.metrics import METHODS, collect_errors, separability_torch
 
@@ -59,7 +60,7 @@ def main():
         tot, n_used, kept = 0.0, 0, 0.0 #accumulates the loss (and the kept-patch fraction) to average them over the epoch
         for batch in train_loader:
             im1, im2 = batch[0].to(device), batch[1].to(device) #takes t1 and t2 and moves them to the GPU
-            change = batch[2].to(device) #pixel change map, used only to mask the loss (val is never masked)
+            change = split_tiles(batch[2].to(device), getattr(enc, "tiles", 1))  # pixel change map, only masks the loss; cut like the features
             with torch.no_grad(): #encodes both dates --> each image put into the feature embedding space, no gradient computed for the encoder
                 x, y = enc(im1), enc(im2)
             keep = unchanged_crops(change) #only crops with no changed pixel are used for training

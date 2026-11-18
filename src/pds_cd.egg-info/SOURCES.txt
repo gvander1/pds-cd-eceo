@@ -1,8 +1,11 @@
 README.md
 pyproject.toml
 src/pds_cd/__init__.py
+src/pds_cd/analysis.py
 src/pds_cd/config.py
 src/pds_cd/datasets.py
+src/pds_cd/feature_viz.py
+src/pds_cd/features.py
 src/pds_cd/metrics.py
 src/pds_cd/model.py
 src/pds_cd/utils.py
