@@ -247,6 +247,70 @@ class SmartiesEncoder(nn.Module):
         assert tokens.shape[1] == n * n, f"{tokens.shape[1]} patch tokens, expected {n * n}"
         return tokens.permute(0, 2, 1).reshape(B, self.out_channels, n, n)
 
+class AnySatEncoder(nn.Module):
+    """Frozen AnySat base (Astruc et al., CVPR 2025, github.com/gastruc/AnySat), loaded with torch.hub.
+    AnySat takes a dict of modalities. The only RGB-only one is "spot" (3 channels, nominal 1 m / px), so the crop is
+    fed as "spot". AnySat sizes its patches in metres (patch_size=10 -> 10 px of spot), so the crop is resized to
+    grid_size * 10 px: 256 -> 160 px gives a 16 x 16 grid, one cell = 16 px of the crop as for the ViT/16 encoders.
+    Normalization: AnySat expects (x - mean) / std with per-channel dataset statistics; ImageNet RGB statistics
+    are used here as an approximation of that."""
+
+    def __init__(self, grid_size=16):
+        super().__init__()
+        self.model = torch.hub.load("gastruc/anysat", "anysat", pretrained=True, flash_attn=False, trust_repo=True)
+        self.patch_m = 10                                            # AnySat patch size in metres (multiple of 10)
+        self.grid_size = grid_size
+        self.input_size = grid_size * self.patch_m                   # spot = 1 m / px -> 10 px per patch
+        self.out_channels = 768                                      # AnySat base
+        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+        for p in self.model.parameters():
+            p.requires_grad = False
+        self.eval()
+
+    def forward(self, x):
+        x = F.interpolate(x, size=(self.input_size, self.input_size), mode="bilinear", align_corners=False)
+        f = self.model({"spot": (x - self.mean) / self.std}, patch_size=self.patch_m, output="patch")
+        if f.shape[-1] == self.out_channels:                         # (B, n, n, C) -> (B, C, n, n)
+            f = f.permute(0, 3, 1, 2)
+        n = self.grid_size
+        assert f.shape[1:] == (self.out_channels, n, n), f"AnySat output {tuple(f.shape)}, expected (B, {self.out_channels}, {n}, {n})"
+        return f.contiguous()
+
+class ClipEncoder(nn.Module):
+    """Frozen CLIP image encoder (OpenAI, via transformers CLIPVisionModel). Patch tokens of the last layer
+    (last_hidden_state without its CLS token), CLIP normalization. The crop is resized to 16 patches per side, so every
+    variant gives a 16 x 16 grid like the other encoders: 256 px for ViT-B/16 (pretrained at 224: its position
+    embeddings are interpolated), 224 px for ViT-L/14 (its pretraining size)."""
+    MODELS = {"clip_vitb16": "openai/clip-vit-base-patch16", "clip_vitl14": "openai/clip-vit-large-patch14"}
+
+    def __init__(self, name="clip_vitb16", grid_size=16):
+        super().__init__()
+        from transformers import CLIPVisionModel
+        self.model = CLIPVisionModel.from_pretrained(self.MODELS[name])
+        cfg = self.model.config
+        self.patch_size = cfg.patch_size                            # 16 or 14
+        self.grid_size = grid_size
+        self.input_size = grid_size * self.patch_size               # 256 (B/16) or 224 (L/14)
+        self.interpolate = self.input_size != cfg.image_size        # B/16 at 256: interpolate position embeddings
+        self.out_channels = cfg.hidden_size                         # 768 (B) or 1024 (L)
+        self.register_buffer("mean", torch.tensor([0.48145466, 0.4578275, 0.40821073]).view(1, 3, 1, 1))
+        self.register_buffer("std", torch.tensor([0.26862954, 0.26130258, 0.27577711]).view(1, 3, 1, 1))
+        for p in self.model.parameters():
+            p.requires_grad = False
+        self.eval()
+
+    def forward(self, x):
+        B = x.shape[0]
+        x = F.interpolate(x, size=(self.input_size, self.input_size), mode="bilinear", align_corners=False)
+        out = self.model(pixel_values=(x - self.mean) / self.std, interpolate_pos_encoding=self.interpolate)
+        tokens = out.last_hidden_state[:, 1:]                       # drop CLS
+        n = self.grid_size
+        assert tokens.shape[1] == n * n, f"{tokens.shape[1]} patch tokens, expected {n * n}"
+        return tokens.permute(0, 2, 1).reshape(B, self.out_channels, n, n)
+
+
+
 def split_tiles(t, k):
     """(B, ..., H, W) -> (B*k*k, ..., H/k, W/k): cuts the last two axes into k x k tiles, each becoming its own
     sample. Row-major tile order, the k*k tiles of one image consecutive. Works for feature grids, labels and
@@ -295,6 +359,10 @@ def build_encoder(cfg, device=None):
         enc = ResNet50Encoder(freeze=True, input_size=cfg["crop"])
     elif name in SmartiesEncoder.MODELS:
         enc = SmartiesEncoder(name, input_size=cfg["resize_to"])   # 224: SMARTIES pretraining size
+    elif name == "anysat":
+        enc = AnySatEncoder(grid_size=cfg["crop"] // 16)          # one cell per 16 px of the crop
+    elif name in ClipEncoder.MODELS:
+        enc = ClipEncoder(name, grid_size=cfg["crop"] // 16)     # 16 x 16 grid for a 256 crop
     else:
         raise ValueError(f"Unknown encoder {name!r} (add it to build_encoder in src/pds_cd/model.py)")
     k = cfg.get("tiles", 1)
